@@ -1055,7 +1055,9 @@ async function fetchAll(force=false){
         const yr=await fetch(batchUrl);
         if(yr.ok){
           const results=await yr.json();
-          for(const[sym,data]of Object.entries(results||{})){
+          const n=Object.keys(results||{}).length;
+          if(!n){firstErr='Empty response (proxy not updated?)';}
+          else{ for(const[sym,data]of Object.entries(results)){
             if(data&&data.price){
               const prev=fresh[sym]?.quote?.prevClose||data.price;
               const chg=+(data.price-prev).toFixed(2);
@@ -1063,7 +1065,7 @@ async function fetchAll(force=false){
               fresh[sym].quote={symbol:sym,price:data.price,change:chg,changePercent:+((chg/prev)*100).toFixed(2),volume:data.volume||0,prevClose:prev};
               realtimeCount++;
             }
-          }
+          }}
         }else{firstErr='HTTP '+yr.status;}
       }catch(e){firstErr=e.message;}
       if(!realtimeCount)debugLog('Proxy fail: '+firstErr);
