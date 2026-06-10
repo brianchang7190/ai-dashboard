@@ -846,8 +846,8 @@ canvas#klineCanvas { display: block; width: 100%; }
 <!-- ============================================================
      Main Grid
      ============================================================ -->
-<!-- Debug Console -->
-<div style="max-width:1480px;margin:16px auto 0;padding:0 32px;" id="debugPanel">
+<!-- Debug Console (hidden, add ?debug to URL to show) -->
+<div style="max-width:1480px;margin:16px auto 0;padding:0 32px;display:none;" id="debugPanel">
   <div style="background:var(--card);border:1px solid var(--border);padding:10px 16px;font-family:var(--font-mono);font-size:0.62rem;color:var(--ink-muted);letter-spacing:0.04em;" id="debugMsg">
     ⏳ Initializing…
   </div>
@@ -1407,6 +1407,7 @@ function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 
 // =================== Init ===================
 async function init(){
+  if(window.location.search.includes('debug')) document.getElementById('debugPanel').style.display='block';
   debugLog('init() — '+(IS_FILE?'FILE=MOCK':'WEB=data.json'));
   try{
     if(IS_FILE){loadMockData();lastRefreshTime=new Date();fetchNews();debugLog('Mock loaded');}
