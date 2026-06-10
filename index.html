@@ -1048,6 +1048,7 @@ async function fetchAll(force=false){
     if(LIVE_PROXY){
       const symbols=Object.keys(fresh);
       updateLoadProgress(0,symbols.length,'Live proxy...');
+      let firstErr='';
       for(const sym of symbols){
         try{
           const yr=await fetch(`${LIVE_PROXY}/api/stock?symbol=${sym}`);
@@ -1064,9 +1065,10 @@ async function fetchAll(force=false){
               if(meta.regularMarketVolume)fresh[sym].quote.volume=meta.regularMarketVolume;
               realtimeCount++;
             }
-          }
-        }catch(e){/* proxy down, ignore */}
+          }else if(!firstErr){firstErr='HTTP '+yr.status;}
+        }catch(e){if(!firstErr)firstErr=e.message;}
       }
+      if(!realtimeCount)debugLog('Proxy fail: '+firstErr);
     }
 
     const loaded=Object.keys(fresh).length;
