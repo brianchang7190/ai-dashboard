@@ -1,13 +1,11 @@
-// Deno Deploy 代理 — 粘贴到 dash.deno.com/playground 直接部署
-// 调用: GET /api/stock?symbol=NVDA
-import { serve } from "https://deno.land/std@0.200.0/http/server.ts";
+// Deno Deploy 代理 — 粘贴到 dash.deno.com Playground 直接部署
+// 无需 import，使用 Deno 内置 API
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const url = new URL(req.url);
   const path = url.pathname;
   const symbol = url.searchParams.get("symbol") || "";
 
-  // CORS
   const cors = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -30,8 +28,7 @@ serve(async (req) => {
       });
     } catch (e) {
       return new Response(JSON.stringify({ error: e.message }), {
-        status: 502,
-        headers: { ...cors, "Content-Type": "application/json" },
+        status: 502, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
   }
@@ -43,7 +40,6 @@ serve(async (req) => {
       const rssUrl = `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${syms}&region=US&lang=en-US`;
       const resp = await fetch(rssUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
       const xml = await resp.text();
-
       const items = [];
       const re = /<item>([\s\S]*?)<\/item>/g;
       let m;
@@ -51,10 +47,8 @@ serve(async (req) => {
         const item = m[1];
         const t = (item.match(/<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/) || [])[1] || "";
         const l = (item.match(/<link>(.*?)<\/link>/) || [])[1] || "#";
-        const d = (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])[1] || "";
-        if (t) items.push({ title: t, link: l, pubDate: d.slice(0, 11), sentiment: "neutral" });
+        if (t) items.push({ title: t, link: l, sentiment: "neutral" });
       }
-
       return new Response(JSON.stringify({ items: items.slice(0, 15) }), {
         headers: { ...cors, "Content-Type": "application/json" },
       });
@@ -65,7 +59,7 @@ serve(async (req) => {
     }
   }
 
-  return new Response("AI Dashboard Proxy — use /api/stock?symbol=NVDA", {
+  return new Response("AI Dashboard Proxy OK", {
     headers: { ...cors, "Content-Type": "text/plain" },
   });
 });
