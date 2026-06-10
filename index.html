@@ -1123,11 +1123,6 @@ function updateLoadProgress(i, total, symbol){
 function clearLoadProgress(){
   const btn=document.getElementById('btnRefresh');
   if(btn)btn.innerHTML='↻ <span>Refresh</span>';
-  const st=document.getElementById('statusMsg');
-  if(st){
-    const n=Object.keys(stockData).length;
-    st.textContent=n?`Loaded ${n} tickers`:'Ready — click Refresh';
-  }
 }
 
 // =================== Cache ===================
@@ -1387,8 +1382,6 @@ function updateMeta(){
   const badge=document.getElementById('modeBadge');badge.textContent=IS_FILE?'mock':'live';badge.className='mode-badge '+(IS_FILE?'mock':'live');
   const now=lastRefreshTime||new Date(),ts=now.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   document.getElementById('lastUpdate').textContent=ts;
-  const st=document.getElementById('statusMsg');
-  if(st&&!st.textContent.startsWith('Loading')){const n=Object.keys(stockData).length;st.textContent=n?`Loaded ${n} tickers`:'Ready — click Refresh';}
   document.getElementById('footerTime').textContent='last update: '+now.toLocaleString('zh-CN');
   document.getElementById('apiCount').textContent=IS_FILE?'calls: mock (0)':'calls: '+apiCallCount+' today';
 }
