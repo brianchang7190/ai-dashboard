@@ -3,10 +3,14 @@ import urllib.request, json, re, time, ssl
 from datetime import datetime
 
 SECTORS = {
-    "chip":  ["NVDA","AMD","AVGO","TSM"],
-    "cloud": ["MSFT","AMZN","GOOGL","ORCL"],
-    "app":   ["CRM","PLTR","SNOW","CRWD"],
-    "cyber": ["PANW","ZS","NET","S"],
+    "chip":       ["NVDA","AMD","AVGO","TSM"],
+    "cloud":      ["MSFT","AMZN","GOOGL","ORCL"],
+    "app":        ["CRM","PLTR","SNOW","CRWD"],
+    "cyber":      ["PANW","ZS","NET","S"],
+    "foundation": ["META","AAPL","BBAI","AI"],
+    "data":       ["DDOG","MDB","ESTC","CFLT"],
+    "robotics":   ["TSLA","ISRG","MBLY","PATH"],
+    "fintech":    ["SOFI","DUOL","SHOP","SQ"],
 }
 
 all_symbols = []
