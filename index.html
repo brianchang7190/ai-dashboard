@@ -1025,6 +1025,8 @@ async function fetchAll(force=false){
     if(!r.ok){debugLog('data.json HTTP '+r.status);clearLoadProgress();showToast('Data not available yet — run GitHub Action first');return;}
     const j=await r.json();
     const quotes=j.quotes||{};
+    const klines=j.klines||{};
+    const newsData=j.news||[];
     const fresh={};
     for(const[sym,q]of Object.entries(quotes)){
       if(!q.price)continue;
@@ -1033,11 +1035,13 @@ async function fetchAll(force=false){
           symbol:sym, price:q.price, change:q.change, changePercent:q.changePercent,
           volume:q.volume||0, prevClose:q.prevClose||q.price
         },
-        daily:[] // 无日线
+        daily:klines[sym]||[] // K 线数据
       };
     }
     const loaded=Object.keys(fresh).length;
-    debugLog('Loaded '+loaded+' quotes (updated '+j.timestamp+')');
+    debugLog('Loaded '+loaded+' quotes + '+Object.keys(klines).length+' klines + '+newsData.length+' news');
+
+    if(newsData.length){newsCache=newsData;renderNews();}
 
     if(loaded>0){
       stockData={...stockData,...fresh};
