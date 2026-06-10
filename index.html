@@ -1100,7 +1100,8 @@ function renderNews(){
 }
 
 async function fetchNews(){
-  if(USE_MOCK){
+  // file:// → mock 新闻 | https:// → 等 data.json 加载（由 fetchAll 填充 newsCache）
+  if(IS_FILE){
     newsCache=[
       {title:'NVIDIA Announces Next-Gen AI Chip Architecture',sentiment:'Bullish',pubDate:'2026-06-09',link:'https://finance.yahoo.com/news/'},
       {title:'Microsoft Expands Azure AI Infrastructure Across 5 New Regions',sentiment:'Bullish',pubDate:'2026-06-09',link:'https://finance.yahoo.com/news/'},
@@ -1108,16 +1109,10 @@ async function fetchNews(){
       {title:'AMD Shares Slip Amid Concerns Over Data Center GPU Competition',sentiment:'Bearish',pubDate:'2026-06-08',link:'https://finance.yahoo.com/news/'},
       {title:'Palantir Wins $480M U.S. Defense AI Analytics Contract',sentiment:'Bullish',pubDate:'2026-06-07',link:'https://finance.yahoo.com/news/'},
       {title:'Snowflake Launches Cortex AI — Enterprise Data Platform Expands',sentiment:'Somewhat-Bullish',pubDate:'2026-06-07',link:'https://finance.yahoo.com/news/'},
-    ];renderNews();return;
-  }
-  // JSONP 模式下新闻暂用 Mock 数据（无代理可用）
-  if(IS_FILE)renderNews();
-  else{
-    newsCache=[
-      {title:'AI stocks surge as NVIDIA leads chip rally',sentiment:'Bullish',pubDate:new Date().toISOString().slice(0,10),link:'https://finance.yahoo.com'},
-      {title:'Cloud infrastructure spending hits record in Q2',sentiment:'Bullish',pubDate:new Date().toISOString().slice(0,10),link:'https://finance.yahoo.com'},
     ];renderNews();
   }
+  // web 模式：data.json 加载后由 fetchAll 填充真实新闻，这里只显示加载中
+  else { renderNews(); }
 }
 
 function renderTicker(){
@@ -1263,7 +1258,7 @@ async function selectStock(sym){
   document.getElementById('klineSection').scrollIntoView({behavior:'smooth',block:'nearest'});
   // K线: 腾讯免费接口暂不提供日线，显示提示
   const d=stockData[sym];
-  if(d&&d.quote&&(!d.daily||!d.daily.length)&&!USE_MOCK){
+  if(d&&d.quote&&(!d.daily||!d.daily.length)&&!IS_FILE){
     // 从 quote 生成一个占位数据点让图表不至于全空
     const q=d.quote;
     stockData[sym].daily=[{
@@ -1300,13 +1295,13 @@ async function handleRefresh(){
 }
 
 function updateMeta(){
-  const badge=document.getElementById('modeBadge');badge.textContent=USE_MOCK?'mock':'live';badge.className='mode-badge '+(USE_MOCK?'mock':'live');
+  const badge=document.getElementById('modeBadge');badge.textContent=IS_FILE?'mock':'live';badge.className='mode-badge '+(IS_FILE?'mock':'live');
   const now=lastRefreshTime||new Date(),ts=now.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   document.getElementById('lastUpdate').textContent=ts;
   const st=document.getElementById('statusMsg');
   if(st&&!st.textContent.startsWith('Loading')){const n=Object.keys(stockData).length;st.textContent=n?`Loaded ${n} tickers`:'Ready — click Refresh';}
   document.getElementById('footerTime').textContent='last update: '+now.toLocaleString('zh-CN');
-  document.getElementById('apiCount').textContent=USE_MOCK?'calls: mock (0)':'calls: '+apiCallCount+' today';
+  document.getElementById('apiCount').textContent=IS_FILE?'calls: mock (0)':'calls: '+apiCallCount+' today';
 }
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._tid);t._tid=setTimeout(()=>t.classList.remove('show'),2200);}
