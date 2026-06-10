@@ -424,6 +424,21 @@ body {
 
 .stock-vol-num { white-space: nowrap; }
 
+.stock-indicators {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--ink-muted);
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.stock-indicators span { white-space: nowrap; }
+.stock-indicators .bull { color: var(--ledger-green); }
+.stock-indicators .bear { color: var(--ledger-red); }
+.stock-indicators .warn { color: var(--brass); }
+
 .stock-vol-rule {
   flex: 1;
   height: 3px;
@@ -1163,13 +1178,37 @@ function renderSectors(){
   for(const[sid,sec]of Object.entries(SECTORS)){
     const body=document.getElementById(`body-${sid}`);if(!body)continue;
     let h='',tc=0,cnt=0;
-    for(const st of sec.stocks){const d=stockData[st.symbol];if(!d||!d.quote){h+=cardEmpty(st);continue;}const q=d.quote,cls=q.changePercent>=0?'up':'down',sgn=q.changePercent>=0?'+':'',sel=selectedStock===st.symbol?' selected':'',flowCls=q.changePercent>=0?'inflow':'outflow';tc+=q.changePercent;cnt++;h+=`<div class="stock-card${sel}" onclick="selectStock('${st.symbol}')"><div class="stock-symbol">${st.symbol}</div><div class="stock-name">${st.name}</div><div class="stock-price-row"><span class="stock-price">${q.price.toFixed(2)}</span><span class="stock-change ${cls}">${sgn}${q.changePercent.toFixed(2)}%</span></div><div class="stock-change-amt ${cls}">${q.change>=0?'+':''}$${Math.abs(q.change).toFixed(2)}</div><div class="stock-vol-row"><span class="stock-vol-num">Vol ${fmtVol(q.volume)}</span><div class="stock-vol-rule"><div class="stock-vol-fill ${flowCls}" style="width:${volPct(st.symbol,sid)}%"></div></div></div></div>`;}body.innerHTML=h;
+    for(const st of sec.stocks){const d=stockData[st.symbol];if(!d||!d.quote){h+=cardEmpty(st);continue;}const q=d.quote,cls=q.changePercent>=0?'up':'down',sgn=q.changePercent>=0?'+':'',sel=selectedStock===st.symbol?' selected':'',flowCls=q.changePercent>=0?'inflow':'outflow';tc+=q.changePercent;cnt++;const ind=d.daily?computeIndicators(d.daily):null;
+const indHtml=ind?`<div class="stock-indicators"><span class="${q.price>=ind.ma20?'bull':'bear'}">MA${ind.ma20.toFixed(0)} ${q.price>=ind.ma20?'↑':'↓'}</span><span class="${ind.rsi>70?'bear':ind.rsi<30?'bull':''}">RSI ${ind.rsi}</span><span class="${ind.volRatio>1.5?'warn':''}">V×${ind.volRatio.toFixed(1)}</span></div>`:'';
+h+=`<div class="stock-card${sel}" onclick="selectStock('${st.symbol}')"><div class="stock-symbol">${st.symbol}</div><div class="stock-name">${st.name}</div><div class="stock-price-row"><span class="stock-price">${q.price.toFixed(2)}</span><span class="stock-change ${cls}">${sgn}${q.changePercent.toFixed(2)}%</span></div><div class="stock-change-amt ${cls}">${q.change>=0?'+':''}$${Math.abs(q.change).toFixed(2)}</div><div class="stock-vol-row"><span class="stock-vol-num">Vol ${fmtVol(q.volume)}</span><div class="stock-vol-rule"><div class="stock-vol-fill ${flowCls}" style="width:${volPct(st.symbol,sid)}%"></div></div></div>${indHtml}</div>`;}body.innerHTML=h;
     const avgEl=document.getElementById(`avg-${sid}`);if(avgEl&&cnt){const avg=tc/cnt;avgEl.textContent=`${avg>=0?'+':''}${avg.toFixed(2)}%`;avgEl.className='sector-pct '+(avg>=0?'up':'down');}
   }
 }
 function cardEmpty(st){return`<div class="stock-card" onclick="showToast('No data — click Refresh')"><div class="stock-symbol">${st.symbol}</div><div class="stock-name">${st.name}</div><div class="stock-price-row"><span class="stock-price" style="color:var(--ink-faint)">—</span></div></div>`;}
 function volPct(sym,sid){const sec=SECTORS[sid];let mx=0;for(const s of sec.stocks){const d=stockData[s.symbol];if(d&&d.quote&&d.quote.volume>mx)mx=d.quote.volume;}const d=stockData[sym];return mx?Math.max(3,((d?.quote?.volume||0)/mx)*100):5;}
 function fmtVol(v){if(!v)return'--';if(v>=1e9)return(v/1e9).toFixed(2)+'B';if(v>=1e6)return(v/1e6).toFixed(1)+'M';if(v>=1e3)return(v/1e3).toFixed(0)+'K';return String(v);}
+
+// 从 65 天 K 线计算 MA20, RSI14, 量比
+function computeIndicators(daily){
+  if(!daily||daily.length<20)return null;
+  const closes=daily.map(d=>d.close);
+  const volumes=daily.map(d=>d.volume);
+  const n=closes.length;
+  // MA20
+  const ma20=closes.slice(-20).reduce((a,b)=>a+b,0)/20;
+  // RSI14
+  let gain=0,loss=0;
+  for(let i=n-14;i<n;i++){
+    const diff=closes[i]-closes[i-1];
+    if(diff>0)gain+=diff;else loss-=diff;
+  }
+  gain/=14;loss/=14;
+  const rsi=loss===0?100:Math.round(100-100/(1+gain/loss));
+  // 量比: 当日量 / 5日均量
+  const vol5=volumes.slice(-6,-1).reduce((a,b)=>a+b,0)/5;
+  const volRatio=volumes[n-1]/vol5;
+  return {ma20,rsi,volRatio};
+}
 
 function renderComparison(){
   const list=document.getElementById('compList');if(!list)return;
@@ -1263,6 +1302,17 @@ function renderKline(sym){
     ctx.fillStyle=up?'#1f4d3d':'#8b3a3a';
     ctx.fillRect(x-candleW/2,toY(Math.max(d.open,d.close)),candleW,bh);
   });
+
+  // MA20 叠加线
+  if(daily.length>=20){
+    ctx.strokeStyle='rgba(44,62,90,0.55)';ctx.lineWidth=1.2;
+    ctx.beginPath();let f=1;
+    for(let i=19;i<daily.length;i++){
+      const ma=daily.slice(i-19,i+1).reduce((s,d)=>s+d.close,0)/20;
+      if(f){ctx.moveTo(toX(i),toY(ma));f=0;}else ctx.lineTo(toX(i),toY(ma));
+    }
+    ctx.stroke();
+  }
 
   canvas._kd={daily,toX,toY,yMin,yMax,pad,cw,ch,w,h,vTop,vH,candleW,gap,mv};
 }
