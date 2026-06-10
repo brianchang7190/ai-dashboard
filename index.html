@@ -936,13 +936,10 @@ canvas#klineCanvas { display: block; width: 100%; }
 <script>
 'use strict';
 
-// 数据模式：JSONP 直连新浪（零代理） | file:// → Mock
+// 数据模式: data.json (GitHub Actions 定时抓取) | file:// → Mock
 const IS_FILE = window.location.protocol === 'file:';
-const USE_MOCK = IS_FILE; // 本地文件打开=Mock, 网页打开=JSONP真实数据
-const USE_JSONP = !IS_FILE; // 网页托管时用 JSONP 直连新浪
-const PROXY_URL = '/api/stock'; // 保留兼容
-const NEWS_URL = '/api/news';
-const CACHE_KEY = 'ai_dashboard_sina_v2';
+const DATA_URL = IS_FILE ? null : 'data.json'; // 同源静态 JSON
+const CACHE_KEY = 'ai_dashboard_gh_v1';
 
 const CACHE_TTL = { quote: 5*60*1000, daily: 30*60*1000 };
 
@@ -1010,78 +1007,48 @@ function loadMockData(){
   }stockData=all;
 }
 
-// =================== API — 腾讯财经 (CORS, UTF-8, 批量查询) ===================
-// sqt.gtimg.cn 支持 CORS *, 一次 fetch 拿全部标的
-async function fetchAllQuotes(){
-  if(USE_MOCK)return null;
-  const allStocks=[];
-  for(const sec of Object.values(SECTORS))for(const st of sec.stocks)allStocks.push(st.symbol);
-
-  // 批量查询（一次 HTTP 请求拿全部）
-  const codes=allStocks.map(s=>'us'+s).join(',');
-  const url=`https://sqt.gtimg.cn/utf8/q=${codes}`;
-  apiCallCount++;
-
-  try{
-    const r=await fetch(url);
-    if(!r.ok){debugLog('Tencent HTTP '+r.status);return null;}
-    const text=await r.text();
-    return text;
-  }catch(e){debugLog('Tencent network error: '+e.message);return null;}
-}
-
-function parseQuotes(text){
-  // 解析腾讯格式: v_usNVDA="field0~field1~..."
-  if(!text)return{};
-  const result={};
-  const re=/v_us(\w+)="([^"]*)"/g;
-  let m;
-  while((m=re.exec(text))!==null){
-    const sym=m[1].toUpperCase();
-    const f=m[2].split('~');
-    if(f.length<35)continue;
-    const price=parseFloat(f[3])||0;
-    const prevClose=parseFloat(f[4])||price;
-    const changePct=parseFloat(f[32])||0;
-    const volume=parseInt(f[6])||0;
-    if(!price)continue;
-    const change=+(price-prevClose).toFixed(2);
-    result[sym]={
-      quote:{
-        symbol:sym, price, change, changePercent:changePct,
-        volume, prevClose,
-        high52w:parseFloat(f[45])||null, low52w:parseFloat(f[46])||null,
-      },
-      daily:[] // K线需单独获取
-    };
-  }
-  return result;
-}
-
+// =================== API — 读同源 data.json (GitHub Actions 定时更新) ===================
 async function fetchAll(force=false){
-  if(USE_MOCK){loadMockData();return;}
+  if(IS_FILE){loadMockData();return;}
 
   const cached=loadCache();
   if(cached&&!force&&(Date.now()-cached.timestamp<CACHE_TTL.quote)){
     stockData=cached.data;lastRefreshTime=new Date(cached.timestamp);return;
   }
 
-  // 批量请求腾讯财经（一次 HTTP 拿全部 16 只）
-  updateLoadProgress(0,1,'Fetching...');
-  debugLog('Fetching Tencent batch...');
-  const text=await fetchAllQuotes();
-  if(!text){debugLog('Tencent batch FAILED');clearLoadProgress();showToast('Data source unreachable');return;}
+  updateLoadProgress(0,1,'Loading data.json...');
+  debugLog('Fetching data.json...');
+  apiCallCount++;
 
-  const fresh=parseQuotes(text);
-  const loaded=Object.keys(fresh).length;
-  debugLog('Parsed: '+loaded+' tickers');
+  try{
+    const r=await fetch(DATA_URL+'?t='+Date.now()); // cache-bust
+    if(!r.ok){debugLog('data.json HTTP '+r.status);clearLoadProgress();showToast('Data not available yet — run GitHub Action first');return;}
+    const j=await r.json();
+    const quotes=j.quotes||{};
+    const fresh={};
+    for(const[sym,q]of Object.entries(quotes)){
+      if(!q.price)continue;
+      fresh[sym]={
+        quote:{
+          symbol:sym, price:q.price, change:q.change, changePercent:q.changePercent,
+          volume:q.volume||0, prevClose:q.prevClose||q.price
+        },
+        daily:[] // 无日线
+      };
+    }
+    const loaded=Object.keys(fresh).length;
+    debugLog('Loaded '+loaded+' quotes (updated '+j.timestamp+')');
 
-  if(loaded>0){
-    stockData={...stockData,...fresh};
-    saveCache(stockData);
-    lastRefreshTime=new Date();
-  } else {
-    showToast('No data parsed — check format');
+    if(loaded>0){
+      stockData={...stockData,...fresh};
+      saveCache(stockData);
+      lastRefreshTime=new Date();
+    } else {
+      showToast('No quotes in data.json');
+    }
+  }catch(e){
+    debugLog('ERROR: '+e.message);
+    showToast('Failed to load data');
   }
   clearLoadProgress();
   renderAll();
@@ -1343,12 +1310,21 @@ function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 
 // =================== Init ===================
 async function init(){
-  debugLog('init() — USE_MOCK='+USE_MOCK);
+  debugLog('init() — '+(IS_FILE?'FILE=MOCK':'WEB=data.json'));
   try{
-    if(USE_MOCK){loadMockData();lastRefreshTime=new Date();fetchNews();debugLog('Mock data loaded');}
-    else{const cached=loadCache();debugLog('Cache '+(cached?'found (age='+Math.round((Date.now()-cached.timestamp)/1000)+'s)':'empty'));if(cached&&(Date.now()-cached.timestamp<CACHE_TTL.quote)){stockData=cached.data;lastRefreshTime=new Date(cached.timestamp);debugLog('Using cached data');}if(!Object.keys(stockData).length){debugLog('Starting fetchAll…');fetchAll().then(()=>{lastRefreshTime=new Date();renderAll();debugLog('fetchAll complete');});}fetchNews();}
+    if(IS_FILE){loadMockData();lastRefreshTime=new Date();fetchNews();debugLog('Mock loaded');}
+    else{
+      const cached=loadCache();
+      if(cached&&(Date.now()-cached.timestamp<CACHE_TTL.quote)){stockData=cached.data;lastRefreshTime=new Date(cached.timestamp);debugLog('Cache hit');}
+      // 自动加载 data.json
+      if(!Object.keys(stockData).length&&DATA_URL){
+        debugLog('Auto-loading data.json…');
+        fetchAll().then(()=>{lastRefreshTime=new Date();renderAll();});
+      }
+      fetchNews();
+    }
     renderAll();
-  }catch(e){debugLog('ERROR in init: '+e.message);console.error(e);}
+  }catch(e){debugLog('ERROR: '+e.message);}
   document.addEventListener('keydown',e=>{if(e.key==='r'&&e.ctrlKey){e.preventDefault();handleRefresh();}});
 }
 init();
