@@ -242,12 +242,17 @@ body {
   gap: 16px;
 }
 
-.sector-chip  { grid-column: 1; grid-row: 1; }
-.sector-cloud { grid-column: 2; grid-row: 1; }
-.sector-app   { grid-column: 1; grid-row: 2; }
-.sector-cyber { grid-column: 2; grid-row: 2; }
-.side-panel   { grid-column: 3; grid-row: 1 / 3; }
-.kline-full   { grid-column: 1 / 4; grid-row: 3; }
+.sector-chip       { grid-column: 1; grid-row: 1; }
+.sector-cloud      { grid-column: 2; grid-row: 1; }
+.sector-app        { grid-column: 1; grid-row: 2; }
+.sector-cyber      { grid-column: 2; grid-row: 2; }
+.sector-foundation { grid-column: 1; grid-row: 3; }
+.sector-data       { grid-column: 2; grid-row: 3; }
+.sector-robotics   { grid-column: 1; grid-row: 4; }
+.sector-fintech    { grid-column: 2; grid-row: 4; }
+.side-panel        { grid-column: 3; grid-row: 1 / 5; }
+.kline-full        { grid-column: 1 / 4; grid-row: 5; }
+#compareSection    { grid-column: 1 / 4; grid-row: 6; }
 
 /* ============================================================
    Sector Panel — Ledger Page
@@ -794,12 +799,10 @@ canvas#klineCanvas { display: block; width: 100%; }
     gap: 12px;
     margin-top: 20px;
   }
-  .sector-chip  { grid-column: 1; grid-row: auto; }
-  .sector-cloud { grid-column: 2; grid-row: auto; }
-  .sector-app   { grid-column: 1; grid-row: auto; }
-  .sector-cyber { grid-column: 2; grid-row: auto; }
-  .side-panel   { grid-column: 1 / 3; grid-row: auto; }
-  .kline-full   { grid-column: 1 / 3; grid-row: auto; }
+  .sector-chip,.sector-cloud,.sector-app,.sector-cyber,.sector-foundation,.sector-data,.sector-robotics,.sector-fintech { grid-column: 1; grid-row: auto; }
+  .main-grid { grid-template-columns: 1fr; }
+  .side-panel   { grid-column: 1; grid-row: auto; }
+  .kline-full, #compareSection { grid-column: 1; grid-row: auto; }
   .sector-body   { grid-template-columns: repeat(2, 1fr); }
   .ticker        { display: none; }
 }
@@ -919,17 +922,50 @@ canvas#klineCanvas { display: block; width: 100%; }
     <div class="sector-body" id="body-cyber"></div>
   </div>
 
+  <!-- Sector V: Foundation -->
+  <div class="sector-panel sector-foundation" id="sector-foundation">
+    <div class="sector-head" onclick="toggleSector('foundation')">
+      <div class="sector-label-group"><span class="sector-numeral">V.</span><span class="sector-title">Foundation Models</span><span class="sector-tag">大模型平台</span></div>
+      <div class="sector-head-right"><span class="sector-pct" id="avg-foundation">—</span><span class="sector-carat">▾</span></div>
+    </div><div class="sector-body" id="body-foundation"></div>
+  </div>
+
+  <!-- Sector VI: Data -->
+  <div class="sector-panel sector-data" id="sector-data">
+    <div class="sector-head" onclick="toggleSector('data')">
+      <div class="sector-label-group"><span class="sector-numeral">VI.</span><span class="sector-title">Data &amp; Analytics</span><span class="sector-tag">数据基建</span></div>
+      <div class="sector-head-right"><span class="sector-pct" id="avg-data">—</span><span class="sector-carat">▾</span></div>
+    </div><div class="sector-body" id="body-data"></div>
+  </div>
+
+  <!-- Sector VII: Robotics -->
+  <div class="sector-panel sector-robotics" id="sector-robotics">
+    <div class="sector-head" onclick="toggleSector('robotics')">
+      <div class="sector-label-group"><span class="sector-numeral">VII.</span><span class="sector-title">Robotics &amp; Autonomy</span><span class="sector-tag">具身智能</span></div>
+      <div class="sector-head-right"><span class="sector-pct" id="avg-robotics">—</span><span class="sector-carat">▾</span></div>
+    </div><div class="sector-body" id="body-robotics"></div>
+  </div>
+
+  <!-- Sector VIII: Fintech -->
+  <div class="sector-panel sector-fintech" id="sector-fintech">
+    <div class="sector-head" onclick="toggleSector('fintech')">
+      <div class="sector-label-group"><span class="sector-numeral">VIII.</span><span class="sector-title">Fintech &amp; Consumer AI</span><span class="sector-tag">AI消费</span></div>
+      <div class="sector-head-right"><span class="sector-pct" id="avg-fintech">—</span><span class="sector-carat">▾</span></div>
+    </div><div class="sector-body" id="body-fintech"></div>
+  </div>
+
+  <!-- Sector Compare -->
+  <div class="kline-full" id="compareSection">
+    <div class="kline-top">
+      <span class="kline-heading">Sector Comparison <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--ink-muted);">— normalized % change</span></span>
+    </div>
+    <canvas id="compareCanvas" style="display:block;width:100%;height:280px;"></canvas>
+  </div>
+
   <!-- Side Panel -->
   <aside class="side-panel" id="comparison">
     <div class="side-heading">Sector Ranking</div>
     <div class="rank-list" id="compList"></div>
-    <div class="pipeline">
-      <div class="pipeline-label">Expansion Pipeline</div>
-      <span class="pipeline-item">V. Foundation Models — pending</span>
-      <span class="pipeline-item">VI. Data &amp; Analytics — pending</span>
-      <span class="pipeline-item">VII. Robotics &amp; Autonomy — pending</span>
-      <span class="pipeline-item">VIII. Fintech &amp; Consumer AI — pending</span>
-    </div>
   </aside>
 
   <!-- K-line -->
@@ -1016,6 +1052,30 @@ const SECTORS = {
     {symbol:'ZS',name:'Zscaler, Inc.',basePrice:200},
     {symbol:'NET',name:'Cloudflare, Inc.',basePrice:130},
     {symbol:'S',name:'SentinelOne, Inc.',basePrice:28}
+  ]},
+  foundation: { id:'foundation', numeral:'V.', name:'Foundation Models', tag:'大模型平台', stocks:[
+    {symbol:'META',name:'Meta Platforms',basePrice:630},
+    {symbol:'AAPL',name:'Apple Inc.',basePrice:260},
+    {symbol:'BBAI',name:'BigBear.ai',basePrice:3.5},
+    {symbol:'AI',name:'C3.ai',basePrice:28}
+  ]},
+  data: { id:'data', numeral:'VI.', name:'Data & Analytics', tag:'数据基建', stocks:[
+    {symbol:'DDOG',name:'Datadog Inc.',basePrice:140},
+    {symbol:'MDB',name:'MongoDB Inc.',basePrice:280},
+    {symbol:'ESTC',name:'Elastic N.V.',basePrice:115},
+    {symbol:'CFLT',name:'Confluent Inc.',basePrice:32}
+  ]},
+  robotics: { id:'robotics', numeral:'VII.', name:'Robotics & Autonomy', tag:'具身智能', stocks:[
+    {symbol:'TSLA',name:'Tesla Inc.',basePrice:330},
+    {symbol:'ISRG',name:'Intuitive Surgical',basePrice:580},
+    {symbol:'MBLY',name:'Mobileye Global',basePrice:16},
+    {symbol:'PATH',name:'UiPath Inc.',basePrice:13}
+  ]},
+  fintech: { id:'fintech', numeral:'VIII.', name:'Fintech & Consumer AI', tag:'AI消费', stocks:[
+    {symbol:'SOFI',name:'SoFi Technologies',basePrice:22},
+    {symbol:'DUOL',name:'Duolingo Inc.',basePrice:340},
+    {symbol:'SHOP',name:'Shopify Inc.',basePrice:115},
+    {symbol:'SQ',name:'Block Inc.',basePrice:85}
   ]}
 };
 
@@ -1146,8 +1206,74 @@ function saveCache(d){try{localStorage.setItem(CACHE_KEY,JSON.stringify({timesta
 function loadCache(){try{const r=localStorage.getItem(CACHE_KEY);return r?JSON.parse(r):null;}catch(e){return null;}}
 
 // =================== Render ===================
-function renderAll(){renderTicker();renderSectors();renderComparison();renderNews();if(selectedStock)renderKline(selectedStock);updateMeta();}
+function renderAll(){renderTicker();renderSectors();renderComparison();renderNews();if(selectedStock)renderKline(selectedStock);renderSectorCompare();updateMeta();}
 let newsCache=[];
+
+// 赛道对比图 — 同赛道 4 只标的归一化走势
+function renderSectorCompare(){
+  if(!selectedStock)return;
+  let sector=null;
+  for(const s of Object.values(SECTORS)){if(s.stocks.some(st=>st.symbol===selectedStock)){sector=s;break;}}
+  if(!sector)return;
+
+  const canvas=document.getElementById('compareCanvas');
+  const w=canvas.parentElement.clientWidth-40,h=260,dpr=window.devicePixelRatio||1;
+  canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+  ctx.fillStyle='#fdfbf6';ctx.fillRect(0,0,w,h);
+
+  const pad={top:20,right:20,bottom:28,left:50};
+  const cw=w-pad.left-pad.right,ch=h-pad.top-pad.bottom;
+
+  // 收集数据，取最长公共长度
+  let allDaily=[],maxLen=0;
+  const colors=['#1f4d3d','#2c3e5a','#8b3a3a','#b8935a'];
+  for(const st of sector.stocks){
+    const d=stockData[st.symbol];
+    if(d&&d.daily&&d.daily.length>5){allDaily.push({sym:st.symbol,daily:d.daily});maxLen=Math.max(maxLen,d.daily.length);}
+  }
+  if(allDaily.length<2)return;
+
+  // 公共长度：所有标的都有的数据
+  const minLen=Math.min(...allDaily.map(a=>a.daily.length));
+  const start=allDaily[0].daily.length-minLen;
+
+  // 归一化：以起点为 0%
+  const lines=allDaily.map((a,i)=>{
+    const base=a.daily[start].close;
+    return {
+      sym:a.sym,color:colors[i],
+      points:a.daily.slice(start).map(d=>(d.close/base-1)*100)
+    };
+  });
+
+  // 范围
+  let yMin=Infinity,yMax=-Infinity;
+  lines.forEach(l=>l.points.forEach(p=>{if(p<yMin)yMin=p;if(p>yMax)yMax=p;}));
+  const yr=yMax-yMin||1;
+  const toX=i=>pad.left+(i/(minLen-1))*cw;
+  const toY=v=>pad.top+ch-((v-yMin)/yr)*ch;
+
+  // 网格+标签
+  ctx.strokeStyle='#e0dbd0';ctx.lineWidth=.5;
+  for(let i=0;i<=4;i++){const v=yMin+yr*(i/4),y=toY(v);ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(w-pad.right,y);ctx.stroke();ctx.fillStyle='#8a8578';ctx.font='9px "Chivo Mono",monospace';ctx.fillText(v.toFixed(1)+'%',2,y+4);}
+
+  // 日期
+  const dstep=Math.max(1,Math.floor(minLen/5));
+  for(let i=0;i<minLen;i+=dstep){ctx.fillText(allDaily[0].daily[start+i].date.slice(5),toX(i)-16,h-pad.bottom+14);}
+
+  // 画线
+  lines.forEach(l=>{
+    ctx.strokeStyle=l.color;ctx.lineWidth=1.5;
+    ctx.beginPath();
+    l.points.forEach((p,i)=>{const x=toX(i),y=toY(p);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+    ctx.stroke();
+    // 标签
+    const last=l.points[l.points.length-1];
+    ctx.fillStyle=l.color;ctx.font='bold 10px "Chivo Mono",monospace';
+    ctx.fillText(l.sym,toX(l.points.length-1)+4,toY(last)+4);
+  });
+}
 
 function renderNews(){
   const list=document.getElementById('newsList');
@@ -1221,6 +1347,23 @@ function computeIndicators(daily){
   return {ma20,rsi,volRatio};
 }
 
+// MACD(12,26,9)
+function computeMACD(daily){
+  if(!daily||daily.length<35)return null;
+  const closes=daily.map(d=>d.close);
+  const ema=(arr,n)=>arr.reduce((a,v,i)=>i===0?v:(v*2/(n+1)+a*(1-2/(n+1))),0);
+  let ema12=closes.slice(0,12).reduce((a,b)=>a+b)/12,ema26=closes.slice(0,26).reduce((a,b)=>a+b)/26;
+  const dif=[],dea=[],macd=[];
+  for(let i=0;i<closes.length;i++){
+    if(i===0){dif.push(0);dea.push(0);macd.push(0);continue;}
+    ema12=closes[i]*2/13+ema12*11/13;ema26=closes[i]*2/27+ema26*25/27;
+    const d=ema12-ema26;dif.push(d);
+    const e=d*2/10+(dea[dea.length-1]||0)*8/10;dea.push(e);
+    macd.push((d-e)*2);
+  }
+  return {dif,dea,macd};
+}
+
 function renderComparison(){
   const list=document.getElementById('compList');if(!list)return;
   const ranks=[];for(const[sid,sec]of Object.entries(SECTORS)){let t=0,c=0,u=0,d=0;for(const st of sec.stocks){const dd=stockData[st.symbol];if(dd&&dd.quote){t+=dd.quote.changePercent;c++;dd.quote.changePercent>=0?u++:d++;}}if(c)ranks.push({sid,numeral:sec.numeral,name:sec.name,avg:t/c,up:u,down:d});}
@@ -1272,7 +1415,7 @@ function renderKline(sym){
 
   const daily=d.daily.slice(-klineRange);
   const container=canvas.parentElement;
-  const w=container.clientWidth-40,h=370,dpr=window.devicePixelRatio||1;
+  const w=container.clientWidth-40,h=430,dpr=window.devicePixelRatio||1;
   canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
 
@@ -1323,6 +1466,41 @@ function renderKline(sym){
       if(f){ctx.moveTo(toX(i),toY(ma));f=0;}else ctx.lineTo(toX(i),toY(ma));
     }
     ctx.stroke();
+  }
+
+  // MACD(12,26,9) 子图
+  const macdData=computeMACD(daily);
+  if(macdData){
+    const mTop=vTop+vH+8,mH=48; // MACD 区域
+    let mMax=-Infinity;
+    macdData.dif.forEach(d=>{if(Math.abs(d)>mMax)mMax=Math.abs(d);});
+    macdData.macd.forEach(d=>{if(Math.abs(d)>mMax)mMax=Math.abs(d);});
+    if(mMax===0)mMax=1;
+    const mY=v=>mTop+mH/2-(v/mMax)*(mH/2);
+
+    // 零轴
+    ctx.strokeStyle='#d0ccc4';ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(pad.left,mY(0));ctx.lineTo(w-pad.right,mY(0));ctx.stroke();
+
+    // DIF 线（蓝）+ DEA 线（棕）
+    const drawLine=(arr,color,w)=>{
+      ctx.strokeStyle=color;ctx.lineWidth=w;ctx.beginPath();let f=1;
+      for(let i=0;i<Math.min(arr.length,daily.length);i++){
+        const x=toX(i),y=mY(arr[i]);
+        if(f){ctx.moveTo(x,y);f=0;}else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    };
+    drawLine(macdData.dif,'rgba(44,62,90,0.7)',1);
+    drawLine(macdData.dea,'rgba(184,147,90,0.7)',1);
+
+    // MACD 柱
+    for(let i=0;i<Math.min(macdData.macd.length,daily.length);i++){
+      const x=toX(i)-candleW/2,v=macdData.macd[i];
+      ctx.fillStyle=v>=0?'rgba(31,77,61,0.5)':'rgba(139,58,58,0.45)';
+      const barH=Math.max(1,Math.abs(mY(v)-mY(0)));
+      ctx.fillRect(x,v>=0?mY(v):mY(0),candleW,barH);
+    }
   }
 
   canvas._kd={daily,toX,toY,yMin,yMax,pad,cw,ch,w,h,vTop,vH,candleW,gap,mv};
