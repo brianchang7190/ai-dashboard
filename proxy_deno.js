@@ -18,9 +18,9 @@ serve(async (req) => {
   }
 
   // /api/stock?symbol=NVDA
-  if (path === "/api/stock" && symbol) {
+  if (path === "/api/stock" && symbol && /^[A-Za-z0-9.]+$/.test(symbol)) {
     try {
-      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=1d&interval=1d`;
+      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`;
       const resp = await fetch(yahooUrl, {
         headers: { "User-Agent": "Mozilla/5.0" },
       });
