@@ -134,16 +134,26 @@ body {
 
 /* Ticker — running ink strip */
 .ticker {
-  display: flex;
-  gap: 14px;
-  overflow: hidden;
   flex-shrink: 9;
   min-width: 0;
   max-width: 360px;
+  overflow: hidden;
   font-family: var(--font-mono);
   font-size: 0.58rem;
   mask-image: linear-gradient(to right, black 70%, transparent);
   -webkit-mask-image: linear-gradient(to right, black 70%, transparent);
+}
+
+.ticker-inner {
+  display: flex;
+  gap: 24px;
+  animation: tickerScroll 40s linear infinite;
+  white-space: nowrap;
+}
+
+@keyframes tickerScroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 
 .ticker-item {
@@ -822,7 +832,7 @@ canvas#klineCanvas { display: block; width: 100%; }
     <span class="mode-badge mock" id="modeBadge">mock</span>
   </div>
 
-  <div class="ticker" id="tickerStrip"></div>
+  <div class="ticker"><div class="ticker-inner" id="tickerStrip"></div></div>
 
   <div class="header-actions">
     <span class="meta-time" id="statusMsg">Ready</span>
@@ -1172,7 +1182,7 @@ async function fetchNews(){
 
 function renderTicker(){
   const strip=document.getElementById('tickerStrip');if(!strip)return;
-  let h='';for(const sec of Object.values(SECTORS))for(const st of sec.stocks){const d=stockData[st.symbol];if(!d||!d.quote)continue;const q=d.quote,cls=q.changePercent>=0?'up':'down',sgn=q.changePercent>=0?'+':'';h+=`<span class="ticker-item"><span class="ticker-symbol">${st.symbol}</span><span class="ticker-price">${q.price.toFixed(2)}</span><span class="ticker-change ${cls}">${sgn}${q.changePercent.toFixed(2)}%</span></span>`;}strip.innerHTML=h;
+  let h='';for(const sec of Object.values(SECTORS))for(const st of sec.stocks){const d=stockData[st.symbol];if(!d||!d.quote)continue;const q=d.quote,cls=q.changePercent>=0?'up':'down',sgn=q.changePercent>=0?'+':'';h+=`<span class="ticker-item"><span class="ticker-symbol">${st.symbol}</span><span class="ticker-price">${q.price.toFixed(2)}</span><span class="ticker-change ${cls}">${sgn}${q.changePercent.toFixed(2)}%</span></span>`;}strip.innerHTML=h+h; // 双份实现无缝滚动
 }
 
 function renderSectors(){
