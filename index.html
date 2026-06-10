@@ -948,7 +948,7 @@ canvas#klineCanvas { display: block; width: 100%; }
 // 数据模式: 优先 Deno 代理(实时) → 回退 data.json(1分延迟) → file:// Mock
 const IS_FILE = window.location.protocol === 'file:';
 const DATA_URL = IS_FILE ? null : 'data.json';
-const LIVE_PROXY = ''; // 填 Deno Deploy 地址, 如 'https://xxx.deno.dev'
+const LIVE_PROXY = 'https://dazzling-orangutan-90.brianchang7190.deno.net'; // Deno Deploy 实时代理
 const CACHE_KEY = 'ai_dashboard_gh_v2';
 
 const CACHE_TTL = { quote: 5*60*1000, daily: 30*60*1000 };
