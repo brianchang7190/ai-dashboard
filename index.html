@@ -1047,27 +1047,25 @@ async function fetchAll(force=false){
     let realtimeCount=0;
     if(LIVE_PROXY){
       const symbols=Object.keys(fresh);
-      updateLoadProgress(0,symbols.length,'Live proxy...');
+      updateLoadProgress(0,1,'Live proxy (batch)...');
       let firstErr='';
-      for(const sym of symbols){
-        try{
-          const yr=await fetch(`${LIVE_PROXY}/api/stock?symbol=${sym}`);
-          if(yr.ok){
-            const yd=await yr.json();
-            const meta=yd?.chart?.result?.[0]?.meta;
-            if(meta&&meta.regularMarketPrice){
-              const price=meta.regularMarketPrice;
-              const prev=fresh[sym].quote.prevClose||price;
-              const chg=+(price-prev).toFixed(2);
-              fresh[sym].quote.price=price;
-              fresh[sym].quote.change=chg;
-              fresh[sym].quote.changePercent=+((chg/prev)*100).toFixed(2);
-              if(meta.regularMarketVolume)fresh[sym].quote.volume=meta.regularMarketVolume;
+      // 批量请求：一次拿全部
+      try{
+        const batchUrl=`${LIVE_PROXY}/api/stock?symbol=${symbols.join(',')}`;
+        const yr=await fetch(batchUrl);
+        if(yr.ok){
+          const results=await yr.json();
+          for(const[sym,data]of Object.entries(results||{})){
+            if(data&&data.price){
+              const prev=fresh[sym]?.quote?.prevClose||data.price;
+              const chg=+(data.price-prev).toFixed(2);
+              fresh[sym]=fresh[sym]||{quote:{},daily:[]};
+              fresh[sym].quote={symbol:sym,price:data.price,change:chg,changePercent:+((chg/prev)*100).toFixed(2),volume:data.volume||0,prevClose:prev};
               realtimeCount++;
             }
-          }else if(!firstErr){firstErr='HTTP '+yr.status;}
-        }catch(e){if(!firstErr)firstErr=e.message;}
-      }
+          }
+        }else{firstErr='HTTP '+yr.status;}
+      }catch(e){firstErr=e.message;}
       if(!realtimeCount)debugLog('Proxy fail: '+firstErr);
     }
 

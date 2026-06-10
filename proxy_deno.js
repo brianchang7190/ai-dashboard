@@ -1,5 +1,6 @@
-// Deno Deploy 代理 — 粘贴到 dash.deno.com Playground 直接部署
-// 无需 import，使用 Deno 内置 API
+// Deno Deploy 代理 — 支持单个和批量查询
+// GET /api/stock?symbol=NVDA       → 单只
+// GET /api/stock?symbol=NVDA,AMD   → 批量 (一次返回全部)
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
@@ -15,21 +16,31 @@ Deno.serve(async (req) => {
     return new Response(null, { status: 200, headers: cors });
   }
 
-  // /api/stock?symbol=NVDA
-  if (path === "/api/stock" && symbol && /^[A-Za-z0-9.]+$/.test(symbol)) {
+  // /api/stock?symbol=NVDA 或 ?symbol=NVDA,AMD,AVGO
+  if (path === "/api/stock" && symbol) {
+    const symbols = symbol.split(",").filter(s => /^[A-Za-z0-9.]+$/.test(s));
+    if (!symbols.length) return json({ error: "invalid" }, 400, cors);
+
     try {
-      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`;
-      const resp = await fetch(yahooUrl, {
-        headers: { "User-Agent": "Mozilla/5.0" },
+      // 并行请求所有标的
+      const results = {};
+      const fetches = symbols.map(async (sym) => {
+        try {
+          const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=1d&interval=1d`;
+          const resp = await fetch(yahooUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
+          if (resp.ok) {
+            const data = await resp.json();
+            const meta = data?.chart?.result?.[0]?.meta;
+            if (meta?.regularMarketPrice) {
+              results[sym] = { price: meta.regularMarketPrice, volume: meta.regularMarketVolume || 0 };
+            }
+          }
+        } catch (_) { /* skip */ }
       });
-      const data = await resp.json();
-      return new Response(JSON.stringify(data), {
-        headers: { ...cors, "Content-Type": "application/json" },
-      });
+      await Promise.all(fetches);
+      return json(results, 200, cors);
     } catch (e) {
-      return new Response(JSON.stringify({ error: e.message }), {
-        status: 502, headers: { ...cors, "Content-Type": "application/json" },
-      });
+      return json({ error: e.message }, 502, cors);
     }
   }
 
@@ -49,17 +60,18 @@ Deno.serve(async (req) => {
         const l = (item.match(/<link>(.*?)<\/link>/) || [])[1] || "#";
         if (t) items.push({ title: t, link: l, sentiment: "neutral" });
       }
-      return new Response(JSON.stringify({ items: items.slice(0, 15) }), {
-        headers: { ...cors, "Content-Type": "application/json" },
-      });
-    } catch (e) {
-      return new Response(JSON.stringify({ items: [] }), {
-        headers: { ...cors, "Content-Type": "application/json" },
-      });
+      return json({ items: items.slice(0, 15) }, 200, cors);
+    } catch (_) {
+      return json({ items: [] }, 200, cors);
     }
   }
 
-  return new Response("AI Dashboard Proxy OK", {
-    headers: { ...cors, "Content-Type": "text/plain" },
-  });
+  return new Response("AI Dashboard Proxy OK", { headers: { ...cors, "Content-Type": "text/plain" } });
 });
+
+function json(data, status, cors) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...cors, "Content-Type": "application/json" },
+  });
+}
