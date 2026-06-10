@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "api/stock.js": {
+      "memory": 128,
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    { "source": "/api/stock", "destination": "/api/stock" }
+  ]
+}

@@ -1,8 +1,8 @@
 name: Fetch Stock Data
 on:
   schedule:
-    - cron: '*/5 * * * *'  # 每5分钟
-  workflow_dispatch:        # 手动触发
+    - cron: '*/5 * * * *'  # 每5分钟触发一次
+  workflow_dispatch:
 
 jobs:
   fetch:
@@ -14,12 +14,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Fetch stock data
-        run: python3 fetch_data.py
-      - name: Commit & push
+      - name: Fetch & push (loop ×5 = ~1 min intervals)
         run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add data.json
-          git diff --staged --quiet || git commit -m "data: update stock quotes [skip ci]"
-          git push
+          for i in 1 2 3 4 5; do
+            echo "=== Round $i/5 ==="
+            python3 fetch_data.py
+            git add data.json
+            if ! git diff --staged --quiet; then
+              git config user.name "github-actions"
+              git config user.email "actions@github.com"
+              git commit -m "data: auto refresh #$i [skip ci]"
+              git push
+            fi
+            if [ $i -lt 5 ]; then
+              sleep 60
+            fi
+          done

@@ -1055,7 +1055,13 @@ async function fetchAll(force=false){
     if(loaded>0){
       stockData={...stockData,...fresh};
       saveCache(stockData);
-      lastRefreshTime=new Date();
+      lastRefreshTime=new Date(j.timestamp ? new Date(j.timestamp) : new Date());
+      // 显示数据时间
+      const st=document.getElementById('statusMsg');
+      if(st&&j.timestamp){
+        const age=Math.round((Date.now()-new Date(j.timestamp).getTime())/60000);
+        st.textContent=`Updated ${age}m ago (${j.timestamp.replace('T',' ').replace('Z','')} UTC)`;
+      }
     } else {
       showToast('No quotes in data.json');
     }
