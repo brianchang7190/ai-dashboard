@@ -202,12 +202,14 @@ body {
 /* Mode badge */
 .mode-badge {
   font-family: var(--font-mono);
-  font-size: 0.5rem;
-  letter-spacing: 0.12em;
-  padding: 2px 8px;
+  font-size: 0.48rem;
+  letter-spacing: 0.1em;
+  padding: 2px 6px;
   text-transform: uppercase;
   font-weight: 500;
   border: 1px solid;
+  margin-left: 4px;
+  flex-shrink: 0;
 }
 
 .mode-badge.mock { color: var(--ink-muted); border-color: var(--ink-faint); }
@@ -491,10 +493,10 @@ body {
 .rank-item:hover { background: var(--card-hover); }
 
 .rank-num {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
   color: var(--ink-faint);
-  width: 24px;
+  width: 22px;
   line-height: 1;
 }
 
