@@ -945,10 +945,11 @@ canvas#klineCanvas { display: block; width: 100%; }
 <script>
 'use strict';
 
-// 数据模式: data.json (GitHub Actions 定时抓取) | file:// → Mock
+// 数据模式: 优先 Deno 代理(实时) → 回退 data.json(1分延迟) → file:// Mock
 const IS_FILE = window.location.protocol === 'file:';
-const DATA_URL = IS_FILE ? null : 'data.json'; // 同源静态 JSON
-const CACHE_KEY = 'ai_dashboard_gh_v1';
+const DATA_URL = IS_FILE ? null : 'data.json';
+const LIVE_PROXY = ''; // 填 Deno Deploy 地址, 如 'https://xxx.deno.dev'
+const CACHE_KEY = 'ai_dashboard_gh_v2';
 
 const CACHE_TTL = { quote: 5*60*1000, daily: 30*60*1000 };
 
@@ -1042,32 +1043,34 @@ async function fetchAll(force=false){
     }
     if(newsData.length){newsCache=newsData;renderNews();}
 
-    // === 第2步: 尝试直连 Yahoo Finance 拿实时价 ===
+    // === 第2步: 如果配了 Deno 代理，实时覆盖 ===
     let realtimeCount=0;
-    const symbols=Object.keys(fresh);
-    updateLoadProgress(0,symbols.length,'Trying Yahoo direct...');
-    for(const sym of symbols){
-      try{
-        const yr=await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=1d&interval=1d`);
-        if(yr.ok){
-          const yd=await yr.json();
-          const meta=yd?.chart?.result?.[0]?.meta;
-          if(meta&&meta.regularMarketPrice){
-            const price=meta.regularMarketPrice;
-            const prev=fresh[sym].quote.prevClose||price;
-            const chg=+(price-prev).toFixed(2);
-            fresh[sym].quote.price=price;
-            fresh[sym].quote.change=chg;
-            fresh[sym].quote.changePercent=+((chg/prev)*100).toFixed(2);
-            if(meta.regularMarketVolume)fresh[sym].quote.volume=meta.regularMarketVolume;
-            realtimeCount++;
+    if(LIVE_PROXY){
+      const symbols=Object.keys(fresh);
+      updateLoadProgress(0,symbols.length,'Live proxy...');
+      for(const sym of symbols){
+        try{
+          const yr=await fetch(`${LIVE_PROXY}/api/stock?symbol=${sym}`);
+          if(yr.ok){
+            const yd=await yr.json();
+            const meta=yd?.chart?.result?.[0]?.meta;
+            if(meta&&meta.regularMarketPrice){
+              const price=meta.regularMarketPrice;
+              const prev=fresh[sym].quote.prevClose||price;
+              const chg=+(price-prev).toFixed(2);
+              fresh[sym].quote.price=price;
+              fresh[sym].quote.change=chg;
+              fresh[sym].quote.changePercent=+((chg/prev)*100).toFixed(2);
+              if(meta.regularMarketVolume)fresh[sym].quote.volume=meta.regularMarketVolume;
+              realtimeCount++;
+            }
           }
-        }
-      }catch(e){/* Yahoo blocked, ignore */}
+        }catch(e){/* proxy down, ignore */}
+      }
     }
 
     const loaded=Object.keys(fresh).length;
-    debugLog((realtimeCount?'✅ Direct Yahoo: '+realtimeCount+' stocks':'⚠️ Yahoo blocked, using data.json')+' | '+loaded+' quotes');
+    debugLog((realtimeCount?'⚡ Live: '+realtimeCount+' stocks':'⏳ data.json')+' | '+loaded+' quotes');
 
     if(loaded>0){
       stockData={...stockData,...fresh};
@@ -1075,8 +1078,7 @@ async function fetchAll(force=false){
       lastRefreshTime=new Date(j.timestamp?new Date(j.timestamp):new Date());
       const st=document.getElementById('statusMsg');
       if(st){
-        const age=Math.round((Date.now()-lastRefreshTime.getTime())/60000);
-        st.textContent=(realtimeCount?'⚡ Live (Yahoo direct) ':'⏳ ')+(j.timestamp?'Updated '+age+'m ago':'');
+        st.textContent=(realtimeCount?'⚡ Live (real-time) ':'⏳ ')+(j.timestamp?'~1m delay':'');
       }
     }
   }catch(e){debugLog('ERROR: '+e.message);showToast('Failed to load data');}
