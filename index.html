@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Ledger — 美股 AI 板块监测</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Chivo+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   THE LEDGER — Light Editorial Financial Dashboard
+   ============================================================ */
+:root {
+  --paper:      #f7f4ed;
+  --paper-deep: #efe9dd;
+  --card:       #fdfbf6;
+  --card-hover: #f9f5eb;
+  --ink:        #1a1815;
+  --ink-soft:   #4a4640;
+  --ink-muted:  #8a8578;
+  --ink-faint:  #c4bfb2;
+
+  --ledger-green:  #1f4d3d;
+  --ledger-green-bg: rgba(31,77,61,0.06);
+  --ledger-red:    #8b3a3a;
+  --ledger-red-bg:  rgba(139,58,58,0.05);
+  --navy:          #2c3e5a;
+  --navy-bg:       rgba(44,62,90,0.05);
+  --brass:         #b8935a;
+  --brass-bg:      rgba(184,147,90,0.08);
+
+  --border:        #e0dbd0;
+  --border-strong: #c8c2b4;
+  --border-active: #b8935a;
+
+  --font-display:  'Abril Fatface', 'Times New Roman', serif;
+  --font-serif:    'Crimson Text', 'Times New Roman', serif;
+  --font-mono:     'Chivo Mono', 'SF Mono', 'Courier New', monospace;
+
+  --radius: 2px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-slow: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 15px; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Subtle paper fiber texture */
+  background-image:
+    url("data:image/svg+xml,%3Csvg width='400' height='400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+}
+
+/* ============================================================
+   Header — Editorial Masthead
+   ============================================================ */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(247,244,237,0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 2px solid var(--ink);
+  padding: 0 32px;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-masthead {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.header-title {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.header-vol {
+  font-family: var(--font-serif);
+  font-size: 0.62rem;
+  font-style: italic;
+  color: var(--ink-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.header-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-strong);
+}
+
+.header-subtitle {
+  font-family: var(--font-serif);
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--ink-soft);
+  letter-spacing: 0.03em;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Ticker — running ink strip */
+.ticker {
+  display: flex;
+  gap: 28px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+}
+
+.ticker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.ticker-symbol {
+  color: var(--ink-muted);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+.ticker-price {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.ticker-change {
+  font-weight: 600;
+  font-size: 0.6rem;
+}
+
+.ticker-change.up { color: var(--ledger-green); }
+.ticker-change.down { color: var(--ledger-red); }
+
+/* Refresh button — editorial style */
+.btn-refresh {
+  background: transparent;
+  color: var(--ink-soft);
+  border: 1px solid var(--border-strong);
+  padding: 6px 18px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-slow);
+  text-transform: uppercase;
+}
+
+.btn-refresh:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: rgba(26,24,21,0.04);
+}
+
+.btn-refresh:active { transform: scale(0.97); }
+.btn-refresh.loading { opacity: 0.4; pointer-events: none; }
+
+.meta-time {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+}
+
+/* Mode badge */
+.mode-badge {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.12em;
+  padding: 2px 8px;
+  text-transform: uppercase;
+  font-weight: 500;
+  border: 1px solid;
+}
+
+.mode-badge.mock { color: var(--ink-muted); border-color: var(--ink-faint); }
+.mode-badge.live { color: var(--ledger-green); border-color: rgba(31,77,61,0.3); }
+
+/* ============================================================
+   Main Layout — Ledger Grid
+   ============================================================ */
+.main-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr 250px;
+  max-width: 1480px;
+  margin: 32px auto 0;
+  padding: 0 32px;
+  gap: 20px;
+}
+
+.sector-chip  { grid-column: 1; grid-row: 1; }
+.sector-cloud { grid-column: 2; grid-row: 1; }
+.sector-app   { grid-column: 1; grid-row: 2; }
+.sector-cyber { grid-column: 2; grid-row: 2; }
+.side-panel   { grid-column: 3; grid-row: 1 / 3; }
+.kline-full   { grid-column: 1 / 4; grid-row: 3; }
+
+/* ============================================================
+   Sector Panel — Ledger Page
+   ============================================================ */
+.sector-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  transition: all 0.3s var(--ease-slow);
+}
+
+.sector-panel:hover { border-color: var(--border-strong); }
+
+.sector-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--border);
+  transition: border-color 0.2s;
+}
+
+.sector-head:hover { border-color: var(--border-strong); }
+
+.sector-label-group {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.sector-numeral {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--ink-muted);
+  line-height: 1;
+}
+
+.sector-title {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+
+.sector-tag {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  color: var(--ink-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sector-head-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.sector-pct {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.sector-pct.up { color: var(--ledger-green); }
+.sector-pct.down { color: var(--ledger-red); }
+
+.sector-carat {
+  font-size: 0.5rem;
+  color: var(--ink-muted);
+  transition: transform 0.35s var(--ease);
+}
+
+.sector-panel.folded .sector-carat { transform: rotate(-90deg); }
+
+.sector-body {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  transition: all 0.35s var(--ease);
+  overflow: hidden;
+}
+
+.sector-panel.folded .sector-body { max-height: 0 !important; opacity: 0; }
+
+/* Vertical rules between cards */
+.sector-body > * + * { border-left: 1px solid var(--border); }
+
+/* ============================================================
+   Stock Card — The Ticker Entry
+   ============================================================ */
+.stock-card {
+  padding: 20px 16px;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-slow);
+  position: relative;
+  animation: entryFade 0.55s var(--ease) both;
+}
+
+.stock-card:nth-child(1) { animation-delay: 0.04s; }
+.stock-card:nth-child(2) { animation-delay: 0.1s; }
+.stock-card:nth-child(3) { animation-delay: 0.16s; }
+.stock-card:nth-child(4) { animation-delay: 0.22s; }
+
+@keyframes entryFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.stock-card:hover { background: var(--card-hover); }
+
+.stock-card.selected {
+  background: var(--brass-bg);
+}
+
+.stock-card.selected::after {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--brass);
+}
+
+.stock-symbol {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--ink);
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+.stock-name {
+  font-family: var(--font-serif);
+  font-size: 0.68rem;
+  color: var(--ink-soft);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 10px;
+}
+
+.stock-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.stock-price {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+.stock-change {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.stock-change.up { color: var(--ledger-green); }
+.stock-change.down { color: var(--ledger-red); }
+
+.stock-vol-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+}
+
+.stock-vol-num { white-space: nowrap; }
+
+.stock-vol-rule {
+  flex: 1;
+  height: 3px;
+  background: var(--border);
+}
+
+.stock-vol-fill {
+  height: 100%;
+  transition: width 0.8s var(--ease), background 0.3s var(--ease-slow);
+}
+
+.stock-vol-fill.inflow  { background: rgba(31,77,61,0.45); }
+.stock-vol-fill.outflow { background: rgba(139,58,58,0.35); }
+.stock-card.selected .stock-vol-fill.inflow  { background: var(--ledger-green); }
+.stock-card.selected .stock-vol-fill.outflow { background: var(--ledger-red); }
+
+/* ============================================================
+   Side Panel — Market Ranking
+   ============================================================ */
+.side-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.side-heading {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--ink);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  letter-spacing: 0.02em;
+}
+
+.rank-list { display: flex; flex-direction: column; gap: 3px; }
+
+.rank-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 14px;
+  transition: background 0.2s var(--ease-slow);
+}
+
+.rank-item:hover { background: var(--card-hover); }
+
+.rank-num {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--ink-faint);
+  width: 24px;
+  line-height: 1;
+}
+
+.rank-label {
+  font-family: var(--font-serif);
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-style: italic;
+  color: var(--ink);
+}
+
+.rank-stats { text-align: right; }
+
+.rank-pct {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.rank-pct.up { color: var(--ledger-green); }
+.rank-pct.down { color: var(--ledger-red); }
+
+.rank-tally {
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+
+.rank-tally .t-up { color: var(--ledger-green); }
+.rank-tally .t-down { color: var(--ledger-red); }
+
+/* Pipeline teaser */
+.pipeline {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.pipeline-label {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.pipeline-item {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 0.7rem;
+  font-style: italic;
+  color: var(--ink-faint);
+  padding: 4px 0;
+  transition: color 0.2s;
+  text-decoration: none;
+}
+
+.pipeline-item:hover { color: var(--ink-muted); }
+
+/* ============================================================
+   K-line Section — The Chart
+   ============================================================ */
+.kline-full {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 20px;
+}
+
+.kline-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.kline-top-left {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.kline-heading {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+
+.kline-ticker {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--navy);
+  letter-spacing: 0.05em;
+}
+
+.kline-summary {
+  display: none;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: var(--card-hover);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+
+.kline-summary span { white-space: nowrap; }
+.kline-summary .ks-label { color: var(--ink-muted); }
+.kline-summary .ks-up { color: var(--ledger-green); font-weight: 600; }
+.kline-summary .ks-down { color: var(--ledger-red); font-weight: 600; }
+
+/* ============================================================
+   News Feed
+   ============================================================ */
+.news-section {
+  position: relative;
+  z-index: 1;
+  max-width: 1480px;
+  margin: 20px auto 0;
+  padding: 0 32px;
+}
+
+.news-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 18px 20px;
+}
+
+.news-head {
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--ink);
+  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+}
+
+.news-list { display: flex; flex-direction: column; gap: 2px; }
+
+.news-item {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 0;
+  font-family: var(--font-serif);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  font-style: italic;
+  transition: color 0.2s;
+  text-decoration: none;
+  border-bottom: 1px dotted var(--border);
+}
+
+.news-item:hover { color: var(--ink); }
+
+.news-sentiment {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  text-transform: uppercase;
+  font-style: normal;
+}
+
+.news-sentiment.bullish { color: var(--ledger-green); border: 1px solid rgba(31,77,61,0.3); }
+.news-sentiment.bearish { color: var(--ledger-red); border: 1px solid rgba(139,58,58,0.3); }
+.news-sentiment.neutral { color: var(--ink-muted); border: 1px solid var(--border-strong); }
+
+.news-time {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  font-style: normal;
+}
+
+.kline-range-btns { display: flex; gap: 2px; }
+
+.kline-rbtn {
+  background: transparent;
+  color: var(--ink-muted);
+  border: 1px solid var(--border);
+  padding: 4px 12px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  transition: all 0.2s var(--ease-slow);
+}
+
+.kline-rbtn:hover { color: var(--ink-soft); border-color: var(--border-strong); }
+
+.kline-rbtn.active {
+  color: var(--navy);
+  border-color: rgba(44,62,90,0.4);
+  background: var(--navy-bg);
+}
+
+.kline-empty {
+  text-align: center;
+  padding: 56px 20px;
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  font-style: italic;
+  color: var(--ink-faint);
+}
+
+canvas#klineCanvas { display: block; width: 100%; }
+
+/* ============================================================
+   Footer — Colophon
+   ============================================================ */
+.footer {
+  position: relative;
+  z-index: 1;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 18px 32px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+}
+
+.footer-group { display: flex; align-items: center; gap: 14px; }
+
+.footer-sep { color: var(--border-strong); }
+
+.footer-mark {
+  display: inline-block;
+  width: 6px; height: 6px;
+}
+
+.footer-mark.up { background: var(--ledger-green); }
+.footer-mark.down { background: var(--ledger-red); }
+
+/* ============================================================
+   Toast
+   ============================================================ */
+.toast {
+  position: fixed;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--border-strong);
+  padding: 10px 24px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  opacity: 0;
+  transition: opacity 0.4s;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.toast.show { opacity: 1; }
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 1100px) {
+  .main-grid {
+    grid-template-columns: 1fr 1fr;
+    padding: 0 16px;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .sector-chip  { grid-column: 1; grid-row: auto; }
+  .sector-cloud { grid-column: 2; grid-row: auto; }
+  .sector-app   { grid-column: 1; grid-row: auto; }
+  .sector-cyber { grid-column: 2; grid-row: auto; }
+  .side-panel   { grid-column: 1 / 3; grid-row: auto; }
+  .kline-full   { grid-column: 1 / 3; grid-row: auto; }
+  .sector-body   { grid-template-columns: repeat(2, 1fr); }
+  .ticker        { display: none; }
+}
+
+@media (max-width: 640px) {
+  .header        { padding: 0 12px; height: 52px; }
+  .header-title  { font-size: 1.2rem; }
+  .header-subtitle { display: none; }
+  .header-divider { display: none; }
+  .main-grid     { grid-template-columns: 1fr; padding: 0 8px; gap: 8px; margin-top: 12px; }
+  .sector-chip, .sector-cloud, .sector-app, .sector-cyber,
+  .side-panel, .kline-full { grid-column: 1; }
+  .sector-body   { grid-template-columns: repeat(2, 1fr); }
+  .stock-card    { padding: 14px 12px; }
+  .stock-price   { font-size: 1.1rem; }
+  .btn-refresh span { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     Header — Masthead
+     ============================================================ -->
+<header class="header">
+  <div class="header-masthead">
+    <span class="header-title">The Ledger</span>
+    <span class="header-divider"></span>
+    <span class="header-vol">Vol. I</span>
+    <span class="header-subtitle">美股 AI 板块监测</span>
+    <span class="mode-badge mock" id="modeBadge">mock</span>
+  </div>
+
+  <div class="ticker" id="tickerStrip"></div>
+
+  <div class="header-actions">
+    <span class="meta-time" id="statusMsg">Ready — click Refresh</span>
+    <span class="meta-time" id="lastUpdate">--:--:--</span>
+    <button class="btn-refresh" id="btnRefresh" onclick="handleRefresh()">
+      ↻ <span>Refresh</span>
+    </button>
+  </div>
+</header>
+
+<!-- ============================================================
+     Main Grid
+     ============================================================ -->
+<!-- Debug Console -->
+<div style="max-width:1480px;margin:16px auto 0;padding:0 32px;" id="debugPanel">
+  <div style="background:var(--card);border:1px solid var(--border);padding:10px 16px;font-family:var(--font-mono);font-size:0.62rem;color:var(--ink-muted);letter-spacing:0.04em;" id="debugMsg">
+    ⏳ Initializing…
+  </div>
+</div>
+
+<div class="main-grid">
+
+  <!-- Sector I: Chips -->
+  <div class="sector-panel sector-chip" id="sector-chip">
+    <div class="sector-head" onclick="toggleSector('chip')">
+      <div class="sector-label-group">
+        <span class="sector-numeral">I.</span>
+        <span class="sector-title">AI Chips &amp; Semiconductors</span>
+        <span class="sector-tag">算力底层</span>
+      </div>
+      <div class="sector-head-right">
+        <span class="sector-pct" id="avg-chip">—</span>
+        <span class="sector-carat">▾</span>
+      </div>
+    </div>
+    <div class="sector-body" id="body-chip"></div>
+  </div>
+
+  <!-- Sector II: Cloud -->
+  <div class="sector-panel sector-cloud" id="sector-cloud">
+    <div class="sector-head" onclick="toggleSector('cloud')">
+      <div class="sector-label-group">
+        <span class="sector-numeral">II.</span>
+        <span class="sector-title">Cloud Infrastructure</span>
+        <span class="sector-tag">训练推理平台</span>
+      </div>
+      <div class="sector-head-right">
+        <span class="sector-pct" id="avg-cloud">—</span>
+        <span class="sector-carat">▾</span>
+      </div>
+    </div>
+    <div class="sector-body" id="body-cloud"></div>
+  </div>
+
+  <!-- Sector III: Apps -->
+  <div class="sector-panel sector-app" id="sector-app">
+    <div class="sector-head" onclick="toggleSector('app')">
+      <div class="sector-label-group">
+        <span class="sector-numeral">III.</span>
+        <span class="sector-title">AI Enterprise Software</span>
+        <span class="sector-tag">企业AI产品</span>
+      </div>
+      <div class="sector-head-right">
+        <span class="sector-pct" id="avg-app">—</span>
+        <span class="sector-carat">▾</span>
+      </div>
+    </div>
+    <div class="sector-body" id="body-app"></div>
+  </div>
+
+  <!-- Sector IV: Cybersecurity -->
+  <div class="sector-panel sector-cyber" id="sector-cyber">
+    <div class="sector-head" onclick="toggleSector('cyber')">
+      <div class="sector-label-group">
+        <span class="sector-numeral">IV.</span>
+        <span class="sector-title">AI Cybersecurity</span>
+        <span class="sector-tag">AI安全攻防</span>
+      </div>
+      <div class="sector-head-right">
+        <span class="sector-pct" id="avg-cyber">—</span>
+        <span class="sector-carat">▾</span>
+      </div>
+    </div>
+    <div class="sector-body" id="body-cyber"></div>
+  </div>
+
+  <!-- Side Panel -->
+  <aside class="side-panel" id="comparison">
+    <div class="side-heading">Sector Ranking</div>
+    <div class="rank-list" id="compList"></div>
+    <div class="pipeline">
+      <div class="pipeline-label">Expansion Pipeline</div>
+      <span class="pipeline-item">V. Foundation Models — pending</span>
+      <span class="pipeline-item">VI. Data &amp; Analytics — pending</span>
+      <span class="pipeline-item">VII. Robotics &amp; Autonomy — pending</span>
+      <span class="pipeline-item">VIII. Fintech &amp; Consumer AI — pending</span>
+    </div>
+  </aside>
+
+  <!-- K-line -->
+  <section class="kline-full" id="klineSection">
+    <div class="kline-top">
+      <div class="kline-top-left">
+        <span class="kline-heading">Daily Price Chart</span>
+        <span class="kline-ticker" id="klineStockLabel">select a ticker</span>
+      </div>
+      <div class="kline-range-btns">
+        <button class="kline-rbtn active" onclick="setKlineRange(30, this)">30D</button>
+        <button class="kline-rbtn" onclick="setKlineRange(60, this)">60D</button>
+        <button class="kline-rbtn" onclick="setKlineRange(90, this)">90D</button>
+      </div>
+    </div>
+    <div class="kline-summary" id="klineSummary" style="display:none;"></div>
+    <div id="klinePlaceholder">
+      <div class="kline-empty">↑ select a ticker above to render daily candlestick chart</div>
+    </div>
+    <canvas id="klineCanvas" style="display:none;"></canvas>
+  </section>
+
+</div>
+
+<!-- News Feed -->
+<div class="news-section">
+  <div class="news-panel">
+    <div class="news-head">Market Intelligence — AI Sector News &amp; Sentiment</div>
+    <div class="news-list" id="newsList">
+      <div class="news-item" style="color:var(--ink-muted);font-style:italic;">Loading news feed…</div>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <div class="footer-group">
+    <span id="apiCount">calls: —</span>
+    <span class="footer-sep">|</span>
+    <span><span class="footer-mark up"></span> gain</span>
+    <span><span class="footer-mark down"></span> loss</span>
+  </div>
+  <span id="footerTime">—</span>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- ============================================================
+     JavaScript — Core Logic (unchanged data layer)
+     ============================================================ -->
+<script>
+'use strict';
+
+// 数据模式：JSONP 直连新浪（零代理） | file:// → Mock
+const IS_FILE = window.location.protocol === 'file:';
+const USE_MOCK = IS_FILE; // 本地文件打开=Mock, 网页打开=JSONP真实数据
+const USE_JSONP = !IS_FILE; // 网页托管时用 JSONP 直连新浪
+const PROXY_URL = '/api/stock'; // 保留兼容
+const NEWS_URL = '/api/news';
+const CACHE_KEY = 'ai_dashboard_sina_v2';
+
+const CACHE_TTL = { quote: 5*60*1000, daily: 30*60*1000 };
+
+const SECTORS = {
+  chip: { id:'chip', numeral:'I.', name:'AI Chips & Semiconductors', tag:'算力底层', stocks:[
+    {symbol:'NVDA',name:'NVIDIA Corporation',basePrice:140},
+    {symbol:'AMD',name:'Advanced Micro Devices',basePrice:160},
+    {symbol:'AVGO',name:'Broadcom Inc.',basePrice:185},
+    {symbol:'TSM',name:'Taiwan Semiconductor',basePrice:175}
+  ]},
+  cloud: { id:'cloud', numeral:'II.', name:'Cloud Infrastructure', tag:'训练推理平台', stocks:[
+    {symbol:'MSFT',name:'Microsoft Corporation',basePrice:465},
+    {symbol:'AMZN',name:'Amazon.com, Inc.',basePrice:225},
+    {symbol:'GOOGL',name:'Alphabet Inc.',basePrice:195},
+    {symbol:'ORCL',name:'Oracle Corporation',basePrice:185}
+  ]},
+  app: { id:'app', numeral:'III.', name:'AI Enterprise Software', tag:'企业AI产品', stocks:[
+    {symbol:'CRM',name:'Salesforce, Inc.',basePrice:305},
+    {symbol:'PLTR',name:'Palantir Technologies',basePrice:105},
+    {symbol:'SNOW',name:'Snowflake Inc.',basePrice:170},
+    {symbol:'CRWD',name:'CrowdStrike Holdings',basePrice:385}
+  ]},
+  cyber: { id:'cyber', numeral:'IV.', name:'AI Cybersecurity', tag:'AI安全攻防', stocks:[
+    {symbol:'PANW',name:'Palo Alto Networks',basePrice:375},
+    {symbol:'ZS',name:'Zscaler, Inc.',basePrice:200},
+    {symbol:'NET',name:'Cloudflare, Inc.',basePrice:130},
+    {symbol:'S',name:'SentinelOne, Inc.',basePrice:28}
+  ]}
+};
+
+/*
+ * Reserved: foundation, data, cyber, robotics, fintech
+ * (see previous version for full definitions)
+ */
+
+let stockData = {}, selectedStock = null, klineRange = 30, apiCallCount = 0, lastRefreshTime = null;
+
+// =================== Debug ===================
+const debugLines=[];
+function debugLog(msg){
+  debugLines.push(new Date().toLocaleTimeString()+' '+msg);
+  if(debugLines.length>20)debugLines.shift();
+  const el=document.getElementById('debugMsg');
+  if(el)el.innerHTML=debugLines.map(l=>'▸ '+l).join('<br>');
+  console.log('[debug]',msg);
+}
+
+// =================== Mock Data ===================
+function generateMockDaily(sym, base, days=120) {
+  const data=[], vol=base*0.025;
+  let p=base, d=new Date(); d.setDate(d.getDate()-Math.floor(days*1.4));
+  while(data.length<days){d.setDate(d.getDate()+1);if(d.getDay()===0||d.getDay()===6)continue;
+    const ch=(Math.random()-0.48)*vol, o=p, c=p+ch;
+    data.push({date:d.toISOString().split('T')[0],open:+o.toFixed(2),high:+(Math.max(o,c)+Math.random()*vol*.6).toFixed(2),low:+(Math.min(o,c)-Math.random()*vol*.6).toFixed(2),close:+c.toFixed(2),volume:Math.floor(1e6+Math.random()*8e6*(base/100))});
+    p=c;
+  }return data;
+}
+
+function loadMockData(){
+  const all={};
+  for(const sec of Object.values(SECTORS))for(const st of sec.stocks){
+    const daily=generateMockDaily(st.symbol,st.basePrice,120);
+    const last=daily[daily.length-1],prev=daily[daily.length-2]||last;
+    all[st.symbol]={quote:{symbol:st.symbol,price:last.close,change:+(last.close-prev.close).toFixed(2),changePercent:+(((last.close-prev.close)/prev.close)*100).toFixed(2),volume:last.volume,prevClose:prev.close},daily};
+  }stockData=all;
+}
+
+// =================== API — JSONP 直连新浪财经 ===================
+// 浏览器跨域限制 → 通过 <script> 标签 JSONP 绕过，无需代理
+async function fetchStock(symbol){
+  if(USE_MOCK)return null;
+  apiCallCount++;
+  return new Promise((resolve) => {
+    const varName = 'hq_str_gb_' + symbol.toLowerCase();
+    const script = document.createElement('script');
+    script.setAttribute('charset', 'gbk');
+    script.src = `https://hq.sinajs.cn/list=gb_${symbol.toLowerCase()}`;
+    const timeout = setTimeout(() => { cleanup(); resolve(null); }, 8000);
+    const cleanup = () => {
+      clearTimeout(timeout);
+      if(script.parentNode)script.parentNode.removeChild(script);
+    };
+    script.onload = () => {
+      const raw = window[varName];
+      cleanup();
+      if(!raw){resolve(null);return;}
+      const f = raw.split(',');
+      if(f.length<11){resolve(null);return;}
+      const price = parseFloat(f[1]) || 0;
+      const changePct = parseFloat(f[2]) || 0;
+      const volume = parseInt(f[10]) || 0;
+      const prevClose = price / (1 + changePct/100);
+      if(!price){resolve(null);return;}
+      // 包装为兼容格式
+      const now = Math.floor(Date.now()/1000);
+      resolve({
+        chart:{result:[{meta:{
+          symbol:symbol, regularMarketPrice:price, chartPreviousClose:prevClose,
+          previousClose:prevClose, regularMarketVolume:volume
+        },timestamp:[now],
+        indicators:{quote:[{open:[price],high:[price],low:[price],close:[price],volume:[volume]}]}}]}
+      });
+    };
+    script.onerror = () => { cleanup(); resolve(null); };
+    document.head.appendChild(script);
+  });
+}
+
+function parseStock(j){
+  // 兼容 JSONP 和 Yahoo Finance 两种格式
+  if(!j||!j.chart||!j.chart.result||!j.chart.result.length)return null;
+  const r=j.chart.result[0], meta=r.meta;
+  if(!meta||!meta.regularMarketPrice)return null;
+  const price=meta.regularMarketPrice;
+  const prevClose=meta.chartPreviousClose||meta.previousClose||price;
+  const change=+(price-prevClose).toFixed(2);
+  const changePercent=prevClose?+((change/prevClose)*100).toFixed(2):0;
+  const daily=[];
+  const ts=r.timestamp||[], ind=r.indicators?.quote?.[0];
+  if(ts.length&&ind){
+    for(let i=0;i<ts.length;i++){
+      const o=ind.open[i],h=ind.high[i],l=ind.low[i],c=ind.close[i];
+      if(o==null||h==null||l==null||c==null)continue;
+      daily.push({date:new Date(ts[i]*1000).toISOString().split('T')[0],open:+o.toFixed(2),high:+h.toFixed(2),low:+l.toFixed(2),close:+c.toFixed(2),volume:ind.volume[i]||0});
+    }
+  }
+  return {quote:{symbol:meta.symbol,price,change,changePercent,volume:meta.regularMarketVolume||0,prevClose},daily};
+}
+
+async function fetchAll(force=false){
+  if(USE_MOCK){loadMockData();return;}
+
+  const cached=loadCache();
+  if(cached&&!force&&(Date.now()-cached.timestamp<CACHE_TTL.quote)){
+    stockData=cached.data;lastRefreshTime=new Date(cached.timestamp);return;
+  }
+
+  const allStocks=[];
+  for(const sec of Object.values(SECTORS))for(const st of sec.stocks)allStocks.push(st);
+  const total=allStocks.length;
+  debugLog('fetchAll: '+total+' stocks to load');
+
+  // 收集数据
+  const fresh={};
+  let failCount=0;
+
+  for(let i=0;i<allStocks.length;i++){
+    const st=allStocks[i];
+    updateLoadProgress(i, allStocks.length, st.symbol);
+
+    try{
+      const j=await fetchStock(st.symbol);
+      const parsed=parseStock(j);
+      if(parsed&&parsed.quote){
+        fresh[st.symbol]=parsed;
+        debugLog('OK '+st.symbol+' $'+parsed.quote.price);
+      } else {
+        failCount++;
+        debugLog('FAIL '+st.symbol+' (no data)');
+      }
+    }catch(e){
+      failCount++;
+      debugLog('ERROR '+st.symbol+': '+e.message);
+    }
+
+    // 渐进渲染
+    stockData={...stockData,...fresh};
+    renderAll();
+
+    if(i<allStocks.length-1)await sleep(500);
+  }
+
+  console.log('fetchAll done:',Object.keys(fresh).length,'/',total,'loaded,',failCount,'failed');
+  if(Object.keys(fresh).length){
+    saveCache(stockData);
+    lastRefreshTime=new Date();
+  } else if(failCount===total){
+    showToast('All requests failed — check network');
+  }
+  clearLoadProgress();
+}
+
+// 加载进度提示
+function updateLoadProgress(i, total, symbol){
+  const btn=document.getElementById('btnRefresh');
+  if(btn)btn.innerHTML=`↻ <span>${i+1}/${total} ${symbol}</span>`;
+  const st=document.getElementById('statusMsg');
+  if(st)st.textContent=`Loading ${i+1}/${total} — ${symbol}`;
+}
+
+function clearLoadProgress(){
+  const btn=document.getElementById('btnRefresh');
+  if(btn)btn.innerHTML='↻ <span>Refresh</span>';
+  const st=document.getElementById('statusMsg');
+  if(st){
+    const n=Object.keys(stockData).length;
+    st.textContent=n?`Loaded ${n} tickers`:'Ready — click Refresh';
+  }
+}
+
+// =================== Cache ===================
+function saveCache(d){try{localStorage.setItem(CACHE_KEY,JSON.stringify({timestamp:Date.now(),data:d}));}catch(e){}}
+function loadCache(){try{const r=localStorage.getItem(CACHE_KEY);return r?JSON.parse(r):null;}catch(e){return null;}}
+
+// =================== Render ===================
+function renderAll(){renderTicker();renderSectors();renderComparison();renderNews();if(selectedStock)renderKline(selectedStock);updateMeta();}
+let newsCache=[];
+
+function renderNews(){
+  const list=document.getElementById('newsList');
+  if(!list)return;
+  if(!newsCache.length){
+    list.innerHTML=`<div class="news-item" style="color:var(--ink-muted);font-style:italic;">Loading news…</div>`;
+    return;
+  }
+  list.innerHTML=newsCache.slice(0,10).map(n=>{
+    const s=(n.sentiment||n.overall_sentiment_label||'neutral').toLowerCase();
+    const cls=s==='bullish'?'bullish':(s==='bearish'?'bearish':'neutral');
+    const t=n.pubDate?n.pubDate.slice(0,11):(n.time_published?n.time_published.slice(0,10):'');
+    return`<a class="news-item" href="${n.link||n.url||'#'}" target="_blank" rel="noopener"><span class="news-sentiment ${cls}">${s}</span><span>${n.title||''}</span><span class="news-time">${t}</span></a>`;
+  }).join('');
+}
+
+async function fetchNews(){
+  if(USE_MOCK){
+    newsCache=[
+      {title:'NVIDIA Announces Next-Gen AI Chip Architecture',sentiment:'Bullish',pubDate:'2026-06-09',link:'https://finance.yahoo.com/news/'},
+      {title:'Microsoft Expands Azure AI Infrastructure Across 5 New Regions',sentiment:'Bullish',pubDate:'2026-06-09',link:'https://finance.yahoo.com/news/'},
+      {title:'CrowdStrike Reports Record AI-Driven Threat Detection in Q2',sentiment:'Bullish',pubDate:'2026-06-08',link:'https://finance.yahoo.com/news/'},
+      {title:'AMD Shares Slip Amid Concerns Over Data Center GPU Competition',sentiment:'Bearish',pubDate:'2026-06-08',link:'https://finance.yahoo.com/news/'},
+      {title:'Palantir Wins $480M U.S. Defense AI Analytics Contract',sentiment:'Bullish',pubDate:'2026-06-07',link:'https://finance.yahoo.com/news/'},
+      {title:'Snowflake Launches Cortex AI — Enterprise Data Platform Expands',sentiment:'Somewhat-Bullish',pubDate:'2026-06-07',link:'https://finance.yahoo.com/news/'},
+    ];renderNews();return;
+  }
+  // JSONP 模式下新闻暂用 Mock 数据（无代理可用）
+  if(IS_FILE)renderNews();
+  else{
+    newsCache=[
+      {title:'AI stocks surge as NVIDIA leads chip rally',sentiment:'Bullish',pubDate:new Date().toISOString().slice(0,10),link:'https://finance.yahoo.com'},
+      {title:'Cloud infrastructure spending hits record in Q2',sentiment:'Bullish',pubDate:new Date().toISOString().slice(0,10),link:'https://finance.yahoo.com'},
+    ];renderNews();
+  }
+}
+
+function renderTicker(){
+  const strip=document.getElementById('tickerStrip');if(!strip)return;
+  let h='';for(const sec of Object.values(SECTORS))for(const st of sec.stocks){const d=stockData[st.symbol];if(!d||!d.quote)continue;const q=d.quote,cls=q.changePercent>=0?'up':'down',sgn=q.changePercent>=0?'+':'';h+=`<span class="ticker-item"><span class="ticker-symbol">${st.symbol}</span><span class="ticker-price">${q.price.toFixed(2)}</span><span class="ticker-change ${cls}">${sgn}${q.changePercent.toFixed(2)}%</span></span>`;}strip.innerHTML=h;
+}
+
+function renderSectors(){
+  for(const[sid,sec]of Object.entries(SECTORS)){
+    const body=document.getElementById(`body-${sid}`);if(!body)continue;
+    let h='',tc=0,cnt=0;
+    for(const st of sec.stocks){const d=stockData[st.symbol];if(!d||!d.quote){h+=cardEmpty(st);continue;}const q=d.quote,cls=q.changePercent>=0?'up':'down',sgn=q.changePercent>=0?'+':'',sel=selectedStock===st.symbol?' selected':'',flowCls=q.changePercent>=0?'inflow':'outflow';tc+=q.changePercent;cnt++;h+=`<div class="stock-card${sel}" onclick="selectStock('${st.symbol}')"><div class="stock-symbol">${st.symbol}</div><div class="stock-name">${st.name}</div><div class="stock-price-row"><span class="stock-price">${q.price.toFixed(2)}</span><span class="stock-change ${cls}">${sgn}${q.changePercent.toFixed(2)}%</span></div><div class="stock-vol-row"><span class="stock-vol-num">Vol ${fmtVol(q.volume)}</span><div class="stock-vol-rule"><div class="stock-vol-fill ${flowCls}" style="width:${volPct(st.symbol,sid)}%"></div></div></div></div>`;}body.innerHTML=h;
+    const avgEl=document.getElementById(`avg-${sid}`);if(avgEl&&cnt){const avg=tc/cnt;avgEl.textContent=`${avg>=0?'+':''}${avg.toFixed(2)}%`;avgEl.className='sector-pct '+(avg>=0?'up':'down');}
+  }
+}
+function cardEmpty(st){return`<div class="stock-card" onclick="showToast('No data — click Refresh')"><div class="stock-symbol">${st.symbol}</div><div class="stock-name">${st.name}</div><div class="stock-price-row"><span class="stock-price" style="color:var(--ink-faint)">—</span></div></div>`;}
+function volPct(sym,sid){const sec=SECTORS[sid];let mx=0;for(const s of sec.stocks){const d=stockData[s.symbol];if(d&&d.quote&&d.quote.volume>mx)mx=d.quote.volume;}const d=stockData[sym];return mx?Math.max(3,((d?.quote?.volume||0)/mx)*100):5;}
+function fmtVol(v){if(!v)return'--';if(v>=1e9)return(v/1e9).toFixed(2)+'B';if(v>=1e6)return(v/1e6).toFixed(1)+'M';if(v>=1e3)return(v/1e3).toFixed(0)+'K';return String(v);}
+
+function renderComparison(){
+  const list=document.getElementById('compList');if(!list)return;
+  const ranks=[];for(const[sid,sec]of Object.entries(SECTORS)){let t=0,c=0,u=0,d=0;for(const st of sec.stocks){const dd=stockData[st.symbol];if(dd&&dd.quote){t+=dd.quote.changePercent;c++;dd.quote.changePercent>=0?u++:d++;}}if(c)ranks.push({sid,numeral:sec.numeral,name:sec.name,avg:t/c,up:u,down:d});}
+  ranks.sort((a,b)=>b.avg-a.avg);
+  list.innerHTML=ranks.map((r,i)=>{const cls=r.avg>=0?'up':'down',sgn=r.avg>=0?'+':'';return`<div class="rank-item"><span class="rank-num">${String(i+1).padStart(2,'0')}</span><span class="rank-label">${r.numeral} ${r.name}</span><div class="rank-stats"><div class="rank-pct ${cls}">${sgn}${r.avg.toFixed(2)}%</div><div class="rank-tally"><span class="t-up">${r.up}↑</span> <span class="t-down">${r.down}↓</span></div></div></div>`;}).join('');
+}
+
+// =================== K-line (Light Theme Canvas) ===================
+function renderKline(sym){
+  const d=stockData[sym];
+  const placeholder=document.getElementById('klinePlaceholder');
+  const canvas=document.getElementById('klineCanvas');
+  const label=document.getElementById('klineStockLabel');
+  label.textContent=sym;
+
+  // 无 Daily 数据：清空旧图 + 显示加载状态
+  const summary=document.getElementById('klineSummary');
+  if(!d||!d.daily||!d.daily.length){
+    if(summary)summary.style.display='none';
+    canvas.style.display='none';
+    if(placeholder){
+      placeholder.style.display='block';
+      placeholder.innerHTML=`<div class="kline-empty">Loading chart data for <b>${sym}</b> — please wait…</div>`;
+    }
+    // 如果连 quote 都没有，显示等待提示
+    if(!d||!d.quote){
+      if(placeholder)placeholder.innerHTML=`<div class="kline-empty">No data for <b>${sym}</b> — click Refresh to fetch</div>`;
+    }
+    return;
+  }
+
+  placeholder.style.display='none';
+  canvas.style.display='block';
+
+  // OHLCV 摘要条
+  if(summary&&d.quote){
+    const q=d.quote;
+    const latestDaily=d.daily[d.daily.length-1];
+    const openCls=(latestDaily&&latestDaily.close>=latestDaily.open)?'ks-up':'ks-down';
+    summary.style.display='flex';
+    summary.innerHTML=`
+      <span><span class="ks-label">Open</span> ${latestDaily?latestDaily.open.toFixed(2):'—'}</span>
+      <span><span class="ks-label">High</span> ${latestDaily?latestDaily.high.toFixed(2):'—'}</span>
+      <span><span class="ks-label">Low</span> ${latestDaily?latestDaily.low.toFixed(2):'—'}</span>
+      <span class="${openCls}"><span class="ks-label">Close</span> ${latestDaily?latestDaily.close.toFixed(2):'—'}</span>
+      <span class="${q.changePercent>=0?'ks-up':'ks-down'}"><span class="ks-label">Chg</span> ${q.changePercent>=0?'+':''}${q.changePercent.toFixed(2)}%</span>
+      <span><span class="ks-label">Vol</span> ${fmtVol(q.volume)}</span>`;
+  }
+
+  const daily=d.daily.slice(-klineRange);
+  const container=canvas.parentElement;
+  const w=container.clientWidth-40,h=370,dpr=window.devicePixelRatio||1;
+  canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+
+  // Paper background
+  ctx.fillStyle='#fdfbf6';ctx.fillRect(0,0,w,h);
+
+  const pad={top:24,right:20,bottom:32,left:66};
+  const cw=w-pad.left-pad.right,ch=h-pad.top-pad.bottom-58;
+  const vTop=ch+pad.top+44,vH=48;
+  const gap=cw/daily.length,candleW=Math.max(1.5,Math.min(10,gap*.65));
+
+  let mn=Infinity,mx=-Infinity,mv=0;
+  daily.forEach(d=>{if(d.low<mn)mn=d.low;if(d.high>mx)mx=d.high;if(d.volume>mv)mv=d.volume;});
+  const pr=mx-mn,pp=pr*.08,yMin=mn-pp,yMax=mx+pp;
+  const toY=p=>pad.top+ch-((p-yMin)/(yMax-yMin))*ch;
+  const toX=i=>pad.left+i*gap+gap/2;
+
+  // Grid — fine ink lines
+  ctx.strokeStyle='#e0dbd0';ctx.lineWidth=0.5;
+  for(let i=0;i<=4;i++){const y=toY(yMin+(yMax-yMin)*(i/4));ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(w-pad.right,y);ctx.stroke();}
+  ctx.fillStyle='#8a8578';ctx.font='10px "Chivo Mono", monospace';
+  for(let i=0;i<=4;i++)ctx.fillText((yMin+(yMax-yMin)*(i/4)).toFixed(2),4,toY(yMin+(yMax-yMin)*(i/4))+4);
+
+  // Dates
+  ctx.fillStyle='#8a8578';ctx.font='9px "Chivo Mono", monospace';
+  const step=Math.max(1,Math.floor(daily.length/6));
+  for(let i=0;i<daily.length;i+=step)ctx.fillText(daily[i].date.slice(5),toX(i)-16,h-pad.bottom+14);
+
+  // Volume — subtle ink wash
+  daily.forEach((d,i)=>{const x=toX(i)-candleW/2,bh=(d.volume/mv)*vH,up=d.close>=d.open;ctx.fillStyle=up?'rgba(31,77,61,0.18)':'rgba(139,58,58,0.14)';ctx.fillRect(x,vTop+vH-bh,candleW,bh);});
+
+  // Candles — ink on paper
+  daily.forEach((d,i)=>{
+    const x=toX(i),up=d.close>=d.open;
+    const bh=Math.max(.5,toY(Math.min(d.open,d.close))-toY(Math.max(d.open,d.close)));
+    ctx.strokeStyle=up?'#1f4d3d':'#8b3a3a';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x,toY(d.high));ctx.lineTo(x,toY(d.low));ctx.stroke();
+    ctx.fillStyle=up?'#1f4d3d':'#8b3a3a';
+    ctx.fillRect(x-candleW/2,toY(Math.max(d.open,d.close)),candleW,bh);
+  });
+
+  canvas._kd={daily,toX,toY,yMin,yMax,pad,cw,ch,w,h,vTop,vH,candleW,gap,mv};
+}
+
+// =================== Canvas Hover ===================
+const klineCanvas=document.getElementById('klineCanvas');
+klineCanvas.addEventListener('mousemove',function(e){
+  const kd=this._kd;if(!kd)return;
+  const rect=this.getBoundingClientRect(),mx=e.clientX-rect.left,my=e.clientY-rect.top;
+  let nearest=null,minD=Infinity;
+  kd.daily.forEach((d,i)=>{const cx=kd.toX(i),dist=Math.abs(mx-cx);if(dist<kd.gap&&dist<minD){nearest={...d,index:i,cx};minD=dist;}});
+  renderKline(selectedStock);if(!nearest||minD>=kd.gap)return;
+  const ctx=this.getContext('2d'),dpr=window.devicePixelRatio||1;ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);
+  // Crosshair — brass rule
+  ctx.strokeStyle='#b8935a';ctx.lineWidth=.5;ctx.setLineDash([3,5]);
+  ctx.beginPath();ctx.moveTo(nearest.cx,kd.pad.top);ctx.lineTo(nearest.cx,kd.vTop+kd.vH);ctx.stroke();ctx.setLineDash([]);
+  // Tooltip — like a slip of paper
+  const tx=nearest.cx>kd.w/2?nearest.cx-138:nearest.cx+10,ty=kd.pad.top+4;
+  ctx.fillStyle='#fdfbf6';ctx.strokeStyle='#c8c2b4';ctx.lineWidth=1;
+  ctx.beginPath();rr(ctx,tx,ty,128,92,2);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#4a4640';ctx.font='10px "Chivo Mono", monospace';ctx.fillText(nearest.date,tx+8,ty+18);
+  ctx.fillStyle='#1a1815';ctx.fillText('O '+nearest.open.toFixed(2),tx+8,ty+36);ctx.fillText('H '+nearest.high.toFixed(2),tx+8,ty+52);
+  ctx.fillText('L '+nearest.low.toFixed(2),tx+8,ty+68);ctx.fillText('C '+nearest.close.toFixed(2),tx+8,ty+84);
+  ctx.restore();
+});
+klineCanvas.addEventListener('mouseleave',function(){if(selectedStock)renderKline(selectedStock);});
+function rr(c,x,y,w,h,r){c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath();}
+
+// =================== Interactions ===================
+async function selectStock(sym){
+  selectedStock=sym;renderAll();
+  document.getElementById('klineSection').scrollIntoView({behavior:'smooth',block:'nearest'});
+  // 如果缺少 daily 数据（缓存不完整），按需补拉
+  const d=stockData[sym];
+  if(d&&d.quote&&(!d.daily||!d.daily.length)&&!USE_MOCK){
+    showToast('Loading chart data…');
+    const j=await fetchStock(sym);
+    const parsed=parseStock(j);
+    if(parsed&&parsed.daily&&parsed.daily.length){
+      stockData[sym].daily=parsed.daily;
+      saveCache(stockData);
+      renderKline(sym);
+    }
+  }
+}
+function setKlineRange(days,btn){klineRange=days;document.querySelectorAll('.kline-rbtn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');if(selectedStock)renderKline(selectedStock);}
+function toggleSector(sid){document.getElementById(`sector-${sid}`).classList.toggle('folded');}
+
+async function handleRefresh(){
+  debugLog('▶ Refresh clicked');
+  const btn=document.getElementById('btnRefresh');
+  if(!btn){debugLog('ERROR: btnRefresh not found');return;}
+  if(btn.classList.contains('loading')){debugLog('Already loading, skip');return;}
+  btn.classList.add('loading');
+  try{
+    await fetchAll(true);
+    debugLog('fetchAll returned, stocks='+Object.keys(stockData).length);
+    fetchNews();
+    const hasData = Object.keys(stockData).length > 0;
+    lastRefreshTime = hasData ? new Date() : lastRefreshTime;
+    updateMeta();
+    showToast(hasData ? 'Data refreshed from Yahoo Finance' : 'Refreshed');
+  } catch(e){
+    debugLog('ERROR in refresh: '+e.message);
+    showToast('Refresh failed');
+  } finally {
+    btn.classList.remove('loading');btn.innerHTML='↻ <span>Refresh</span>';
+  }
+}
+
+function updateMeta(){
+  const badge=document.getElementById('modeBadge');badge.textContent=USE_MOCK?'mock':'live';badge.className='mode-badge '+(USE_MOCK?'mock':'live');
+  const now=lastRefreshTime||new Date(),ts=now.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  document.getElementById('lastUpdate').textContent=ts;
+  const st=document.getElementById('statusMsg');
+  if(st&&!st.textContent.startsWith('Loading')){const n=Object.keys(stockData).length;st.textContent=n?`Loaded ${n} tickers`:'Ready — click Refresh';}
+  document.getElementById('footerTime').textContent='last update: '+now.toLocaleString('zh-CN');
+  document.getElementById('apiCount').textContent=USE_MOCK?'calls: mock (0)':'calls: '+apiCallCount+' today';
+}
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._tid);t._tid=setTimeout(()=>t.classList.remove('show'),2200);}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+// =================== Init ===================
+async function init(){
+  debugLog('init() — USE_MOCK='+USE_MOCK);
+  try{
+    if(USE_MOCK){loadMockData();lastRefreshTime=new Date();fetchNews();debugLog('Mock data loaded');}
+    else{const cached=loadCache();debugLog('Cache '+(cached?'found (age='+Math.round((Date.now()-cached.timestamp)/1000)+'s)':'empty'));if(cached&&(Date.now()-cached.timestamp<CACHE_TTL.quote)){stockData=cached.data;lastRefreshTime=new Date(cached.timestamp);debugLog('Using cached data');}if(!Object.keys(stockData).length){debugLog('Starting fetchAll…');fetchAll().then(()=>{lastRefreshTime=new Date();renderAll();debugLog('fetchAll complete');});}fetchNews();}
+    renderAll();
+  }catch(e){debugLog('ERROR in init: '+e.message);console.error(e);}
+  document.addEventListener('keydown',e=>{if(e.key==='r'&&e.ctrlKey){e.preventDefault();handleRefresh();}});
+}
+init();
+console.log('◆ The Ledger — AI Sector Monitor');
+</script>
+</body>
+</html>
