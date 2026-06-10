@@ -1010,66 +1010,52 @@ function loadMockData(){
   }stockData=all;
 }
 
-// =================== API — JSONP 直连新浪财经 ===================
-// 浏览器跨域限制 → 通过 <script> 标签 JSONP 绕过，无需代理
-async function fetchStock(symbol){
+// =================== API — 腾讯财经 (CORS, UTF-8, 批量查询) ===================
+// sqt.gtimg.cn 支持 CORS *, 一次 fetch 拿全部标的
+async function fetchAllQuotes(){
   if(USE_MOCK)return null;
+  const allStocks=[];
+  for(const sec of Object.values(SECTORS))for(const st of sec.stocks)allStocks.push(st.symbol);
+
+  // 批量查询（一次 HTTP 请求拿全部）
+  const codes=allStocks.map(s=>'us'+s).join(',');
+  const url=`https://sqt.gtimg.cn/utf8/q=${codes}`;
   apiCallCount++;
-  return new Promise((resolve) => {
-    const varName = 'hq_str_gb_' + symbol.toLowerCase();
-    const script = document.createElement('script');
-    script.setAttribute('charset', 'gbk');
-    script.src = `https://hq.sinajs.cn/list=gb_${symbol.toLowerCase()}`;
-    const timeout = setTimeout(() => { cleanup(); resolve(null); }, 8000);
-    const cleanup = () => {
-      clearTimeout(timeout);
-      if(script.parentNode)script.parentNode.removeChild(script);
-    };
-    script.onload = () => {
-      const raw = window[varName];
-      cleanup();
-      if(!raw){resolve(null);return;}
-      const f = raw.split(',');
-      if(f.length<11){resolve(null);return;}
-      const price = parseFloat(f[1]) || 0;
-      const changePct = parseFloat(f[2]) || 0;
-      const volume = parseInt(f[10]) || 0;
-      const prevClose = price / (1 + changePct/100);
-      if(!price){resolve(null);return;}
-      // 包装为兼容格式
-      const now = Math.floor(Date.now()/1000);
-      resolve({
-        chart:{result:[{meta:{
-          symbol:symbol, regularMarketPrice:price, chartPreviousClose:prevClose,
-          previousClose:prevClose, regularMarketVolume:volume
-        },timestamp:[now],
-        indicators:{quote:[{open:[price],high:[price],low:[price],close:[price],volume:[volume]}]}}]}
-      });
-    };
-    script.onerror = () => { cleanup(); resolve(null); };
-    document.head.appendChild(script);
-  });
+
+  try{
+    const r=await fetch(url);
+    if(!r.ok){debugLog('Tencent HTTP '+r.status);return null;}
+    const text=await r.text();
+    return text;
+  }catch(e){debugLog('Tencent network error: '+e.message);return null;}
 }
 
-function parseStock(j){
-  // 兼容 JSONP 和 Yahoo Finance 两种格式
-  if(!j||!j.chart||!j.chart.result||!j.chart.result.length)return null;
-  const r=j.chart.result[0], meta=r.meta;
-  if(!meta||!meta.regularMarketPrice)return null;
-  const price=meta.regularMarketPrice;
-  const prevClose=meta.chartPreviousClose||meta.previousClose||price;
-  const change=+(price-prevClose).toFixed(2);
-  const changePercent=prevClose?+((change/prevClose)*100).toFixed(2):0;
-  const daily=[];
-  const ts=r.timestamp||[], ind=r.indicators?.quote?.[0];
-  if(ts.length&&ind){
-    for(let i=0;i<ts.length;i++){
-      const o=ind.open[i],h=ind.high[i],l=ind.low[i],c=ind.close[i];
-      if(o==null||h==null||l==null||c==null)continue;
-      daily.push({date:new Date(ts[i]*1000).toISOString().split('T')[0],open:+o.toFixed(2),high:+h.toFixed(2),low:+l.toFixed(2),close:+c.toFixed(2),volume:ind.volume[i]||0});
-    }
+function parseQuotes(text){
+  // 解析腾讯格式: v_usNVDA="field0~field1~..."
+  if(!text)return{};
+  const result={};
+  const re=/v_us(\w+)="([^"]*)"/g;
+  let m;
+  while((m=re.exec(text))!==null){
+    const sym=m[1].toUpperCase();
+    const f=m[2].split('~');
+    if(f.length<35)continue;
+    const price=parseFloat(f[3])||0;
+    const prevClose=parseFloat(f[4])||price;
+    const changePct=parseFloat(f[32])||0;
+    const volume=parseInt(f[6])||0;
+    if(!price)continue;
+    const change=+(price-prevClose).toFixed(2);
+    result[sym]={
+      quote:{
+        symbol:sym, price, change, changePercent:changePct,
+        volume, prevClose,
+        high52w:parseFloat(f[45])||null, low52w:parseFloat(f[46])||null,
+      },
+      daily:[] // K线需单独获取
+    };
   }
-  return {quote:{symbol:meta.symbol,price,change,changePercent,volume:meta.regularMarketVolume||0,prevClose},daily};
+  return result;
 }
 
 async function fetchAll(force=false){
@@ -1080,49 +1066,25 @@ async function fetchAll(force=false){
     stockData=cached.data;lastRefreshTime=new Date(cached.timestamp);return;
   }
 
-  const allStocks=[];
-  for(const sec of Object.values(SECTORS))for(const st of sec.stocks)allStocks.push(st);
-  const total=allStocks.length;
-  debugLog('fetchAll: '+total+' stocks to load');
+  // 批量请求腾讯财经（一次 HTTP 拿全部 16 只）
+  updateLoadProgress(0,1,'Fetching...');
+  debugLog('Fetching Tencent batch...');
+  const text=await fetchAllQuotes();
+  if(!text){debugLog('Tencent batch FAILED');clearLoadProgress();showToast('Data source unreachable');return;}
 
-  // 收集数据
-  const fresh={};
-  let failCount=0;
+  const fresh=parseQuotes(text);
+  const loaded=Object.keys(fresh).length;
+  debugLog('Parsed: '+loaded+' tickers');
 
-  for(let i=0;i<allStocks.length;i++){
-    const st=allStocks[i];
-    updateLoadProgress(i, allStocks.length, st.symbol);
-
-    try{
-      const j=await fetchStock(st.symbol);
-      const parsed=parseStock(j);
-      if(parsed&&parsed.quote){
-        fresh[st.symbol]=parsed;
-        debugLog('OK '+st.symbol+' $'+parsed.quote.price);
-      } else {
-        failCount++;
-        debugLog('FAIL '+st.symbol+' (no data)');
-      }
-    }catch(e){
-      failCount++;
-      debugLog('ERROR '+st.symbol+': '+e.message);
-    }
-
-    // 渐进渲染
+  if(loaded>0){
     stockData={...stockData,...fresh};
-    renderAll();
-
-    if(i<allStocks.length-1)await sleep(500);
-  }
-
-  console.log('fetchAll done:',Object.keys(fresh).length,'/',total,'loaded,',failCount,'failed');
-  if(Object.keys(fresh).length){
     saveCache(stockData);
     lastRefreshTime=new Date();
-  } else if(failCount===total){
-    showToast('All requests failed — check network');
+  } else {
+    showToast('No data parsed — check format');
   }
   clearLoadProgress();
+  renderAll();
 }
 
 // 加载进度提示
@@ -1328,17 +1290,17 @@ function rr(c,x,y,w,h,r){c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+
 async function selectStock(sym){
   selectedStock=sym;renderAll();
   document.getElementById('klineSection').scrollIntoView({behavior:'smooth',block:'nearest'});
-  // 如果缺少 daily 数据（缓存不完整），按需补拉
+  // K线: 腾讯免费接口暂不提供日线，显示提示
   const d=stockData[sym];
   if(d&&d.quote&&(!d.daily||!d.daily.length)&&!USE_MOCK){
-    showToast('Loading chart data…');
-    const j=await fetchStock(sym);
-    const parsed=parseStock(j);
-    if(parsed&&parsed.daily&&parsed.daily.length){
-      stockData[sym].daily=parsed.daily;
-      saveCache(stockData);
-      renderKline(sym);
-    }
+    // 从 quote 生成一个占位数据点让图表不至于全空
+    const q=d.quote;
+    stockData[sym].daily=[{
+      date:new Date().toISOString().split('T')[0],
+      open:q.price, high:q.price, low:q.price, close:q.price, volume:q.volume
+    }];
+    saveCache(stockData);
+    renderKline(sym);
   }
 }
 function setKlineRange(days,btn){klineRange=days;document.querySelectorAll('.kline-rbtn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');if(selectedStock)renderKline(selectedStock);}
