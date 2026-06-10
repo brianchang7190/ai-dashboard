@@ -33,24 +33,7 @@ for sym in all_symbols:
         ts = result['timestamp']
         q = result['indicators']['quote'][0]
 
-        # Quote
-        price = meta.get('regularMarketPrice')
-        prev = meta.get('chartPreviousClose') or meta.get('previousClose') or price
-        if price and prev:
-            quotes[sym] = {
-                'symbol': sym,
-                'price': price,
-                'prevClose': prev,
-                'change': round(price - prev, 2),
-                'changePercent': round((price - prev) / prev * 100, 2),
-                'volume': meta.get('regularMarketVolume', 0) or 0,
-                'high52w': meta.get('fiftyTwoWeekHigh'),
-                'low52w': meta.get('fiftyTwoWeekLow'),
-            }
-        else:
-            quotes[sym] = None
-
-        # K-line
+        # K-line (先解析，后用倒数第二天 close 作为 prevClose)
         daily = []
         for i in range(len(ts)):
             o, h, l, c, v = q['open'][i], q['high'][i], q['low'][i], q['close'][i], q['volume'][i]
@@ -62,7 +45,21 @@ for sym in all_symbols:
         if daily:
             klines[sym] = daily
 
-        print(f'  {sym}: ${price} ({quotes[sym]["changePercent"]:+.2f}%) | {len(daily)} K-line pts')
+        # Quote: 用 K 线倒数第二天 close 作为前收盘价（而非 chartPreviousClose）
+        price = meta.get('regularMarketPrice')
+        prev = daily[-2]['close'] if len(daily) >= 2 else (meta.get('regularMarketPreviousClose') or price)
+        if price and prev:
+            chg = round(price - prev, 2)
+            quotes[sym] = {
+                'symbol': sym, 'price': price, 'prevClose': prev,
+                'change': chg, 'changePercent': round(chg / prev * 100, 2),
+                'volume': meta.get('regularMarketVolume', 0) or 0,
+                'high52w': meta.get('fiftyTwoWeekHigh'), 'low52w': meta.get('fiftyTwoWeekLow'),
+            }
+        else:
+            quotes[sym] = None
+
+        print(f'  {sym}: ${price} ({quotes[sym]["changePercent"]:+.2f}%) | prevClose=${prev} | {len(daily)} pts')
 
     except Exception as e:
         print(f'  {sym}: FAIL ({e})')
