@@ -83,31 +83,37 @@ body {
 .header-masthead {
   display: flex;
   align-items: baseline;
-  gap: 16px;
+  gap: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .header-title {
   font-family: var(--font-display);
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   font-weight: 400;
   color: var(--ink);
   letter-spacing: 0.02em;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .header-vol {
   font-family: var(--font-serif);
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-style: italic;
   color: var(--ink-muted);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
 }
 
 .header-divider {
   width: 1px;
-  height: 20px;
+  height: 16px;
   background: var(--border-strong);
+  flex-shrink: 0;
 }
 
 .header-subtitle {
@@ -116,21 +122,25 @@ body {
   font-style: italic;
   color: var(--ink-soft);
   letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 /* Ticker — running ink strip */
 .ticker {
   display: flex;
-  gap: 28px;
+  gap: 20px;
   overflow: hidden;
+  flex-shrink: 2;
+  min-width: 0;
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.6rem;
 }
 
 .ticker-item {
