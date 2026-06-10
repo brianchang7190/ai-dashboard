@@ -1106,7 +1106,8 @@ async function fetchAll(force=false){
       lastRefreshTime=new Date(j.timestamp?new Date(j.timestamp):new Date());
       const st=document.getElementById('statusMsg');
       if(st){
-        st.textContent=(realtimeCount?'⚡ Live (real-time) ':'⏳ ')+(j.timestamp?'~1m delay':'');
+        const age=j.timestamp?Math.max(1,Math.round((Date.now()-new Date(j.timestamp).getTime())/60000)):1;
+        st.textContent=(realtimeCount?'Real-time':'Delay')+' ~'+age+'m';
       }
     }
   }catch(e){debugLog('ERROR: '+e.message);showToast('Failed to load data');}
