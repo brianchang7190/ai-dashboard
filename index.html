@@ -1030,45 +1030,56 @@ async function fetchAll(force=false){
   apiCallCount++;
 
   try{
-    const r=await fetch(DATA_URL+'?t='+Date.now()); // cache-bust
-    if(!r.ok){debugLog('data.json HTTP '+r.status);clearLoadProgress();showToast('Data not available yet — run GitHub Action first');return;}
+    // === 第1步: 加载 data.json（一定成功）===
+    const r=await fetch(DATA_URL+'?t='+Date.now());
+    if(!r.ok){debugLog('data.json HTTP '+r.status);clearLoadProgress();showToast('Data not available');return;}
     const j=await r.json();
-    const quotes=j.quotes||{};
-    const klines=j.klines||{};
-    const newsData=j.news||[];
+    const quotes=j.quotes||{}, klines=j.klines||{}, newsData=j.news||[];
     const fresh={};
     for(const[sym,q]of Object.entries(quotes)){
       if(!q.price)continue;
-      fresh[sym]={
-        quote:{
-          symbol:sym, price:q.price, change:q.change, changePercent:q.changePercent,
-          volume:q.volume||0, prevClose:q.prevClose||q.price
-        },
-        daily:klines[sym]||[] // K 线数据
-      };
+      fresh[sym]={quote:{symbol:sym,price:q.price,change:q.change,changePercent:q.changePercent,volume:q.volume||0,prevClose:q.prevClose||q.price},daily:klines[sym]||[]};
     }
-    const loaded=Object.keys(fresh).length;
-    debugLog('Loaded '+loaded+' quotes + '+Object.keys(klines).length+' klines + '+newsData.length+' news');
-
     if(newsData.length){newsCache=newsData;renderNews();}
+
+    // === 第2步: 尝试直连 Yahoo Finance 拿实时价 ===
+    let realtimeCount=0;
+    const symbols=Object.keys(fresh);
+    updateLoadProgress(0,symbols.length,'Trying Yahoo direct...');
+    for(const sym of symbols){
+      try{
+        const yr=await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=1d&interval=1d`);
+        if(yr.ok){
+          const yd=await yr.json();
+          const meta=yd?.chart?.result?.[0]?.meta;
+          if(meta&&meta.regularMarketPrice){
+            const price=meta.regularMarketPrice;
+            const prev=fresh[sym].quote.prevClose||price;
+            const chg=+(price-prev).toFixed(2);
+            fresh[sym].quote.price=price;
+            fresh[sym].quote.change=chg;
+            fresh[sym].quote.changePercent=+((chg/prev)*100).toFixed(2);
+            if(meta.regularMarketVolume)fresh[sym].quote.volume=meta.regularMarketVolume;
+            realtimeCount++;
+          }
+        }
+      }catch(e){/* Yahoo blocked, ignore */}
+    }
+
+    const loaded=Object.keys(fresh).length;
+    debugLog((realtimeCount?'✅ Direct Yahoo: '+realtimeCount+' stocks':'⚠️ Yahoo blocked, using data.json')+' | '+loaded+' quotes');
 
     if(loaded>0){
       stockData={...stockData,...fresh};
       saveCache(stockData);
-      lastRefreshTime=new Date(j.timestamp ? new Date(j.timestamp) : new Date());
-      // 显示数据时间
+      lastRefreshTime=new Date(j.timestamp?new Date(j.timestamp):new Date());
       const st=document.getElementById('statusMsg');
-      if(st&&j.timestamp){
-        const age=Math.round((Date.now()-new Date(j.timestamp).getTime())/60000);
-        st.textContent=`Updated ${age}m ago (${j.timestamp.replace('T',' ').replace('Z','')} UTC)`;
+      if(st){
+        const age=Math.round((Date.now()-lastRefreshTime.getTime())/60000);
+        st.textContent=(realtimeCount?'⚡ Live (Yahoo direct) ':'⏳ ')+(j.timestamp?'Updated '+age+'m ago':'');
       }
-    } else {
-      showToast('No quotes in data.json');
     }
-  }catch(e){
-    debugLog('ERROR: '+e.message);
-    showToast('Failed to load data');
-  }
+  }catch(e){debugLog('ERROR: '+e.message);showToast('Failed to load data');}
   clearLoadProgress();
   renderAll();
 }
