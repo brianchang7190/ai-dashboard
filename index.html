@@ -1329,7 +1329,14 @@ async function fetchNews(){
     ];renderNews();
   }
   // web 模式：data.json 加载后由 fetchAll 填充真实新闻，这里只显示加载中
-  else { renderNews(); }
+  else {
+    // web 模式：从 data.json 加载新闻（即使 stockData 缓存命中也要拿新闻）
+    try{
+      const r=await fetch(DATA_URL+'?t='+Date.now());
+      if(r.ok){const j=await r.json();if(j.news&&j.news.length){newsCache=j.news;}}
+    }catch(e){}
+    renderNews();
+  }
 }
 
 let tickerRAF=null,tickerPos=0;
