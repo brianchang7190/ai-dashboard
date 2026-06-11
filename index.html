@@ -1122,7 +1122,7 @@ const SECTORS = {
  * (see previous version for full definitions)
  */
 
-let stockData = {}, selectedStock = null, klineRange = 30, klineOffset = 0, compareRange = 30, compareOffset = 9999, apiCallCount = 0, lastRefreshTime = null;
+let stockData = {}, selectedStock = null, klineRange = 30, klineOffset = 0, compareRange = 30, compareOffset = 0, apiCallCount = 0, lastRefreshTime = null;
 
 // =================== Debug ===================
 const debugLines=[];
@@ -1196,7 +1196,7 @@ async function fetchAll(force=false){
           if(!n){firstErr='Empty response (proxy not updated?)';}
           else{ for(const[sym,data]of Object.entries(results)){
             if(data&&data.price){
-              const prev=fresh[sym]?.quote?.prevClose||data.price;
+              const prev=fresh[sym]?.quote?.prevClose??data.price;
               const chg=+(data.price-prev).toFixed(2);
               fresh[sym]=fresh[sym]||{quote:{},daily:[]};
               fresh[sym].quote={symbol:sym,price:data.price,change:chg,changePercent:+((chg/prev)*100).toFixed(2),volume:data.volume||0,prevClose:prev};
@@ -1212,7 +1212,7 @@ async function fetchAll(force=false){
     debugLog((realtimeCount?'⚡ Live: '+realtimeCount+' stocks':'⏳ data.json')+' | '+loaded+' quotes');
 
     if(loaded>0){
-      stockData={...stockData,...fresh};
+      stockData=fresh; // 替换而非合并，防止旧数据泄漏
       saveCache(stockData);
       lastRefreshTime=new Date(j.timestamp?new Date(j.timestamp):new Date());
       checkAlerts();
@@ -1447,11 +1447,13 @@ function checkAlerts(){
 function reqNotification(){if('Notification' in window&&Notification.permission==='default'){Notification.requestPermission();}}
 
 // ====== Watchlist ======
-let watchlist=JSON.parse(localStorage.getItem('ai_watchlist')||'[]');
+function safeGet(k,d){try{return JSON.parse(localStorage.getItem(k)||d);}catch(e){return JSON.parse(d);}}
+function safeSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+let watchlist=safeGet('ai_watchlist','[]');
 function toggleFav(sym){
   const i=watchlist.indexOf(sym);
   if(i>=0)watchlist.splice(i,1);else watchlist.push(sym);
-  localStorage.setItem('ai_watchlist',JSON.stringify(watchlist));
+  safeSet('ai_watchlist',watchlist);
   renderWatchlist();renderSectors();
 }
 function toggleWatchlist(){
@@ -1473,14 +1475,14 @@ function renderWatchlist(){
 }
 
 // ====== Alert Log ======
-let alertLog=JSON.parse(localStorage.getItem('ai_alertlog')||'[]');
+let alertLog=safeGet('ai_alertlog','[]');
 function addAlertLog(msg){
   alertLog.unshift({time:new Date().toISOString().slice(0,19).replace('T',' '),msg});
   if(alertLog.length>50)alertLog.length=50;
-  localStorage.setItem('ai_alertlog',JSON.stringify(alertLog));
+  safeSet('ai_alertlog',alertLog);
   renderAlertLog();
 }
-function clearAlertLog(){alertLog=[];localStorage.removeItem('ai_alertlog');renderAlertLog();}
+function clearAlertLog(){alertLog=[];try{localStorage.removeItem('ai_alertlog');}catch(e){}renderAlertLog();}
 function renderAlertLog(){
   const sec=document.getElementById('alertLogSection');
   const list=document.getElementById('alertLogList');
@@ -1561,6 +1563,7 @@ function renderKline(sym){
   const daily=d.daily.slice(klineOffset,klineOffset+klineRange);
   if(daily.length<5){klineOffset=maxOff;return;}
   const container=canvas.parentElement;
+  if(!container)return;
   const w=container.clientWidth-40,h=430,dpr=window.devicePixelRatio||1;
   canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
@@ -1678,7 +1681,7 @@ function rr(c,x,y,w,h,r){c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+
 
 // =================== Interactions ===================
 async function selectStock(sym){
-  selectedStock=sym;klineOffset=9999;renderAll();
+  selectedStock=sym;klineOffset=Infinity;compareOffset=Infinity;renderAll();
   document.getElementById('klineSection').scrollIntoView({behavior:'smooth',block:'nearest'});
   // K线: 腾讯免费接口暂不提供日线，显示提示
   const d=stockData[sym];
@@ -1693,15 +1696,16 @@ async function selectStock(sym){
     renderKline(sym);
   }
 }
-function setKlineRange(days,btn){klineRange=days;klineOffset=9999;document.querySelectorAll('.kline-rbtn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');if(selectedStock)renderKline(selectedStock);}
+function setKlineRange(days,btn){klineRange=days;klineOffset=Infinity;document.querySelectorAll('#klineSection .kline-rbtn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');if(selectedStock)renderKline(selectedStock);}
 function shiftKline(dir){
+  if(!selectedStock)return;
   const d=stockData[selectedStock];
   if(!d||!d.daily)return;
   const maxOff=Math.max(0,d.daily.length-klineRange);
   klineOffset=Math.max(0,Math.min(maxOff,klineOffset+dir*Math.floor(klineRange/2)));
   if(selectedStock)renderKline(selectedStock);renderSectorCompare();
 }
-function setCompareRange(days,btn){compareRange=days;compareOffset=9999;document.querySelectorAll('#compareSection .kline-rbtn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');renderSectorCompare();}
+function setCompareRange(days,btn){compareRange=days;compareOffset=Infinity;document.querySelectorAll('#compareSection .kline-rbtn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');renderSectorCompare();}
 function shiftCompare(dir){
   const d=stockData[selectedStock];
   if(!d||!d.daily)return;
@@ -1720,7 +1724,7 @@ async function handleRefresh(){
   try{
     await fetchAll(true);
     debugLog('fetchAll returned, stocks='+Object.keys(stockData).length);
-    fetchNews();
+    await fetchNews();
     const hasData = Object.keys(stockData).length > 0;
     lastRefreshTime = hasData ? new Date() : lastRefreshTime;
     updateMeta();
