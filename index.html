@@ -857,6 +857,17 @@ canvas#klineCanvas { display: block; width: 100%; }
   </div>
 </div>
 
+<!-- Watchlist Panel -->
+<div style="max-width:1480px;margin:16px auto 0;padding:0 32px;display:none;" id="watchPanel">
+  <div style="background:var(--card);border:1px solid var(--border);padding:8px 14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <span style="font-family:var(--font-serif);font-size:0.85rem;font-style:italic;color:var(--ink);">⭐ Watchlist</span>
+      <button onclick="toggleWatchlist()" style="background:none;border:none;cursor:pointer;font-size:0.7rem;color:var(--ink-muted);font-family:var(--font-mono);">收起</button>
+    </div>
+    <div id="watchList" style="display:flex;gap:12px;flex-wrap:wrap;font-family:var(--font-mono);font-size:0.65rem;"></div>
+  </div>
+</div>
+
 <div class="main-grid">
 
   <!-- Sector I: Chips -->
@@ -1013,6 +1024,17 @@ canvas#klineCanvas { display: block; width: 100%; }
     <div class="news-list" id="newsList">
       <div class="news-item" style="color:var(--ink-muted);font-style:italic;">Loading news feed…</div>
     </div>
+  </div>
+</div>
+
+<!-- Alert Log -->
+<div class="news-section" id="alertLogSection" style="display:none;">
+  <div class="news-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <span class="news-head" style="margin-bottom:0;">🔔 Alert History</span>
+      <button onclick="clearAlertLog()" style="background:none;border:none;cursor:pointer;font-family:var(--font-mono);font-size:0.55rem;color:var(--ink-muted);">Clear</button>
+    </div>
+    <div id="alertLogList" style="font-family:var(--font-mono);font-size:0.58rem;color:var(--ink-soft);max-height:200px;overflow-y:auto;"></div>
   </div>
 </div>
 
@@ -1224,7 +1246,7 @@ function saveCache(d){try{localStorage.setItem(CACHE_KEY,JSON.stringify({timesta
 function loadCache(){try{const r=localStorage.getItem(CACHE_KEY);return r?JSON.parse(r):null;}catch(e){return null;}}
 
 // =================== Render ===================
-function renderAll(){renderTicker();renderSectors();renderComparison();renderNews();if(selectedStock)renderKline(selectedStock);renderSectorCompare();updateMeta();}
+function renderAll(){renderTicker();renderWatchlist();renderSectors();renderComparison();renderNews();renderAlertLog();if(selectedStock)renderKline(selectedStock);renderSectorCompare();updateMeta();}
 
 // 赛道对比图 — 同赛道 4 只标的归一化走势
 function renderSectorCompare(){
@@ -1364,7 +1386,7 @@ function renderSectors(){
     let h='',tc=0,cnt=0;
     for(const st of sec.stocks){const d=stockData[st.symbol];if(!d||!d.quote){h+=cardEmpty(st);continue;}const q=d.quote,cls=q.changePercent>=0?'up':'down',sgn=q.changePercent>=0?'+':'',sel=selectedStock===st.symbol?' selected':'',flowCls=q.changePercent>=0?'inflow':'outflow';tc+=q.changePercent;cnt++;const ind=d.daily?computeIndicators(d.daily):null;
 const indHtml=ind?`<div class="stock-indicators"><span class="${q.price>=ind.ma20?'bull':'bear'}">MA${ind.ma20.toFixed(0)} ${q.price>=ind.ma20?'↑':'↓'}</span><span class="${ind.rsi>70?'bear':ind.rsi<30?'bull':''}">RSI ${ind.rsi}</span><span class="${ind.volRatio>1.5?'warn':''}">V×${ind.volRatio.toFixed(1)}</span></div>`:'';
-h+=`<div class="stock-card${sel}" onclick="selectStock('${st.symbol}')"><div class="stock-symbol">${st.symbol}</div><div class="stock-name">${st.name}</div><div class="stock-price-row"><span class="stock-price">${q.price.toFixed(2)}</span><span class="stock-change ${cls}">${sgn}${q.changePercent.toFixed(2)}%</span></div><div class="stock-change-amt ${cls}">${q.change>=0?'+':''}$${Math.abs(q.change).toFixed(2)}</div><div class="stock-vol-row"><span class="stock-vol-num">Vol ${fmtVol(q.volume)}</span><div class="stock-vol-rule"><div class="stock-vol-fill ${flowCls}" style="width:${volPct(st.symbol,sid)}%"></div></div></div>${indHtml}</div>`;}body.innerHTML=h;
+h+=`<div class="stock-card${sel}" onclick="selectStock('${st.symbol}')"><div class="stock-symbol">${st.symbol}<span style="float:right;cursor:pointer;font-size:0.75rem;opacity:${watchlist.includes(st.symbol)?'1':'0.3'};" onclick="event.stopPropagation();toggleFav('${st.symbol}')">⭐</span></div><div class="stock-name">${st.name}</div><div class="stock-price-row"><span class="stock-price">${q.price.toFixed(2)}</span><span class="stock-change ${cls}">${sgn}${q.changePercent.toFixed(2)}%</span></div><div class="stock-change-amt ${cls}">${q.change>=0?'+':''}$${Math.abs(q.change).toFixed(2)}</div><div class="stock-vol-row"><span class="stock-vol-num">Vol ${fmtVol(q.volume)}</span><div class="stock-vol-rule"><div class="stock-vol-fill ${flowCls}" style="width:${volPct(st.symbol,sid)}%"></div></div></div>${indHtml}</div>`;}body.innerHTML=h;
     const avgEl=document.getElementById(`avg-${sid}`);if(avgEl&&cnt){const avg=tc/cnt;avgEl.textContent=`${avg>=0?'+':''}${avg.toFixed(2)}%`;avgEl.className='sector-pct '+(avg>=0?'up':'down');}
   }
 }
@@ -1416,13 +1438,56 @@ function checkAlerts(){
   if(alerts.length){
     document.getElementById('alertPanel').style.display='block';
     document.getElementById('alertMsg').innerHTML='🔔 '+alerts.join(' &nbsp;|&nbsp; ');
-    // 浏览器通知
+    for(const a of alerts)addAlertLog(a);
     if(Notification.permission==='granted'){new Notification('AI Dashboard Alert',{body:alerts[0]});}
   }
 }
 
 // 请求通知权限
 function reqNotification(){if('Notification' in window&&Notification.permission==='default'){Notification.requestPermission();}}
+
+// ====== Watchlist ======
+let watchlist=JSON.parse(localStorage.getItem('ai_watchlist')||'[]');
+function toggleFav(sym){
+  const i=watchlist.indexOf(sym);
+  if(i>=0)watchlist.splice(i,1);else watchlist.push(sym);
+  localStorage.setItem('ai_watchlist',JSON.stringify(watchlist));
+  renderWatchlist();renderSectors();
+}
+function toggleWatchlist(){
+  const p=document.getElementById('watchPanel');
+  p.style.display=p.style.display==='none'?'block':'none';
+}
+function renderWatchlist(){
+  const panel=document.getElementById('watchPanel');
+  const list=document.getElementById('watchList');
+  if(!watchlist.length){panel.style.display='none';return;}
+  panel.style.display='block';
+  let h='';
+  for(const sym of watchlist){
+    const d=stockData[sym];if(!d||!d.quote)continue;
+    const q=d.quote,cls=q.changePercent>=0?'up':'down',sgn=q.changePercent>=0?'+':'';
+    h+=`<span style="cursor:pointer;padding:2px 8px;border:1px solid var(--border);" onclick="selectStock('${sym}')"><b>${sym}</b> $${q.price.toFixed(2)} <span style="color:${q.changePercent>=0?'var(--ledger-green)':'var(--ledger-red)'};">${sgn}${q.changePercent.toFixed(2)}%</span></span>`;
+  }
+  list.innerHTML=h||'No favorites yet — click ⭐ on any stock card';
+}
+
+// ====== Alert Log ======
+let alertLog=JSON.parse(localStorage.getItem('ai_alertlog')||'[]');
+function addAlertLog(msg){
+  alertLog.unshift({time:new Date().toISOString().slice(0,19).replace('T',' '),msg});
+  if(alertLog.length>50)alertLog.length=50;
+  localStorage.setItem('ai_alertlog',JSON.stringify(alertLog));
+  renderAlertLog();
+}
+function clearAlertLog(){alertLog=[];localStorage.removeItem('ai_alertlog');renderAlertLog();}
+function renderAlertLog(){
+  const sec=document.getElementById('alertLogSection');
+  const list=document.getElementById('alertLogList');
+  if(!alertLog.length){sec.style.display='none';return;}
+  sec.style.display='block';
+  list.innerHTML=alertLog.map(a=>`<div style="padding:2px 0;border-bottom:1px dotted var(--border);">${a.time} &nbsp; ${a.msg}</div>`).join('');
+}
 
 // MACD(12,26,9)
 function computeMACD(daily){
