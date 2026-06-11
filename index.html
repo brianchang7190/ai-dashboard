@@ -147,13 +147,8 @@ body {
 .ticker-inner {
   display: flex;
   gap: 24px;
-  animation: tickerScroll 40s linear infinite;
   white-space: nowrap;
-}
-
-@keyframes tickerScroll {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+  will-change: transform;
 }
 
 .ticker-item {
@@ -1337,10 +1332,23 @@ async function fetchNews(){
   else { renderNews(); }
 }
 
+let tickerRAF=null,tickerPos=0;
+function startTickerScroll(el){
+  if(tickerRAF)cancelAnimationFrame(tickerRAF);
+  tickerPos=0;
+  function step(){
+    tickerPos-=0.4; // 速度
+    const halfW=el.scrollWidth/2;
+    if(tickerPos<=-halfW)tickerPos=0;
+    el.style.transform=`translateX(${tickerPos}px)`;
+    tickerRAF=requestAnimationFrame(step);
+  }
+  tickerRAF=requestAnimationFrame(step);
+}
 function renderTicker(){
   const strip=document.getElementById('tickerStrip');if(!strip)return;
-  let h='';for(const sec of Object.values(SECTORS))for(const st of sec.stocks){const d=stockData[st.symbol];if(!d||!d.quote)continue;const q=d.quote,cls=q.changePercent>=0?'up':'down',sgn=q.changePercent>=0?'+':'';h+=`<span class="ticker-item"><span class="ticker-symbol">${st.symbol}</span><span class="ticker-price">${q.price.toFixed(2)}</span><span class="ticker-change ${cls}">${sgn}${q.changePercent.toFixed(2)}%</span></span>`;}strip.innerHTML=h+h; // 双份实现无缝滚动
-  strip.style.animation='none';strip.offsetHeight;strip.style.animation='';
+  let h='';for(const sec of Object.values(SECTORS))for(const st of sec.stocks){const d=stockData[st.symbol];if(!d||!d.quote)continue;const q=d.quote,cls=q.changePercent>=0?'up':'down',sgn=q.changePercent>=0?'+':'';h+=`<span class="ticker-item"><span class="ticker-symbol">${st.symbol}</span><span class="ticker-price">${q.price.toFixed(2)}</span><span class="ticker-change ${cls}">${sgn}${q.changePercent.toFixed(2)}%</span></span>`;}strip.innerHTML=h+h;
+  ;startTickerScroll(strip);
 }
 
 function renderSectors(){
