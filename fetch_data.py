@@ -94,16 +94,38 @@ try:
             bear = bool(re.search(r'\b(miss|drop|fall|decline|bear|downgrade|sell|crash|weak|loss|negative|warn|cut)\b', lo))
             sentiment = 'Bullish' if bull and not bear else ('Bearish' if bear and not bull else 'neutral')
             news.append({'title': t.group(1), 'link': l.group(1), 'pubDate': (d.group(1) if d else '')[:11], 'sentiment': sentiment})
+    # 第二波：更大范围的标的获取更多新闻
+    try:
+        syms2 = 'META,AAPL,TSLA,ISRG,DDOG,SOFI,DUOL,SHOP,PYPL,DT,ESTC,PATH,MBLY'
+        url2 = f'https://feeds.finance.yahoo.com/rss/2.0/headline?s={syms2}&region=US&lang=en-US'
+        req2 = urllib.request.Request(url2, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req2, timeout=15) as r2:
+            xml2 = r2.read().decode()
+        for item_m in re.finditer(r'<item>(.*?)</item>', xml2, re.DOTALL):
+            item = item_m.group(1)
+            t = re.search(r'<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</title>', item)
+            l = re.search(r'<link>(.*?)</link>', item)
+            d = re.search(r'<pubDate>(.*?)</pubDate>', item)
+            if t and l:
+                lo = t.group(1).lower()
+                bull = bool(re.search(r'\b(beat|surge|jump|rise|gain|bull|upgrade|rally|record|strong|growth|breakthrough)\b', lo))
+                bear = bool(re.search(r'\b(miss|drop|fall|decline|bear|downgrade|sell|crash|weak|loss|negative|warn|cut)\b', lo))
+                sentiment = 'Bullish' if bull and not bear else ('Bearish' if bear and not bull else 'neutral')
+                news.append({'title': t.group(1), 'link': l.group(1), 'pubDate': (d.group(1) if d else '')[:11], 'sentiment': sentiment})
+    except: pass
+    # 去重
+    seen=set(); news2=[]
+    for n in news:
+        if n['title'] not in seen: seen.add(n['title']); news2.append(n)
+    news=news2
     print(f'  {len(news)} articles')
-except Exception as e:
-    print(f'  News FAIL ({e})')
 
 # ====== 输出 ======
 output = {
     'timestamp': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
     'quotes': quotes,
     'klines': klines,
-    'news': news[:15],
+    'news': news[:30],
 }
 
 with open('data.json', 'w', encoding='utf-8') as f:
