@@ -94,10 +94,9 @@ try:
             bear = bool(re.search(r'\b(miss|drop|fall|decline|bear|downgrade|sell|crash|weak|loss|negative|warn|cut)\b', lo))
             sentiment = 'Bullish' if bull and not bear else ('Bearish' if bear and not bull else 'neutral')
             news.append({'title': t.group(1), 'link': l.group(1), 'pubDate': (d.group(1) if d else '')[:11], 'sentiment': sentiment})
-    # 第二波：更大范围的标的获取更多新闻
+    # 第二波：CNBC 科技新闻 RSS
     try:
-        syms2 = 'META,AAPL,TSLA,ISRG,DDOG,SOFI,DUOL,SHOP,PYPL,DT,ESTC,PATH,MBLY'
-        url2 = f'https://feeds.finance.yahoo.com/rss/2.0/headline?s={syms2}&region=US&lang=en-US'
+        url2 = 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19854910'
         req2 = urllib.request.Request(url2, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req2, timeout=15) as r2:
             xml2 = r2.read().decode()
