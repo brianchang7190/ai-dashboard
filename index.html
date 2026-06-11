@@ -811,8 +811,9 @@ canvas#klineCanvas { display: block; width: 100%; }
   .sector-chip,.sector-cloud,.sector-app,.sector-cyber,.sector-foundation,.sector-data,.sector-robotics,.sector-fintech,
   .side-panel,.kline-full,#compareSection { grid-column: 1; }
   .sector-body   { grid-template-columns: repeat(2, 1fr); }
-  .stock-card    { padding: 14px 12px; }
+  .stock-card    { padding: 14px 12px; overflow: hidden; }
   .stock-price   { font-size: 1.1rem; }
+  .stock-indicators { font-size: 0.48rem; gap: 4px; }
   .btn-refresh span { display: none; }
 }
 </style>
@@ -1212,7 +1213,7 @@ async function fetchAll(force=false){
     debugLog((realtimeCount?'⚡ Live: '+realtimeCount+' stocks':'⏳ data.json')+' | '+loaded+' quotes');
 
     if(loaded>0){
-      stockData=fresh; // 替换而非合并，防止旧数据泄漏
+      stockData={...stockData,...fresh}; // 合并而非替换，防止部分失败丢数据
       saveCache(stockData);
       lastRefreshTime=new Date(j.timestamp?new Date(j.timestamp):new Date());
       checkAlerts();
@@ -1403,7 +1404,7 @@ function computeIndicators(daily){
   const ma20=closes.slice(-20).reduce((a,b)=>a+b,0)/20;
   // RSI14
   let gain=0,loss=0;
-  for(let i=n-13;i<n;i++){
+  for(let i=n-14;i<n;i++){
     const diff=closes[i]-closes[i-1];
     if(diff>0)gain+=diff;else loss-=diff;
   }
@@ -1577,7 +1578,7 @@ function renderKline(sym){
 
   let mn=Infinity,mx=-Infinity,mv=1;
   daily.forEach(d=>{if(d.low<mn)mn=d.low;if(d.high>mx)mx=d.high;if(d.volume>mv)mv=d.volume;});
-  const pr=mx-mn,pp=pr*.08,yMin=mn-pp,yMax=mx+pp;
+  const pr=Math.max(mx-mn,0.01),pp=pr*.08,yMin=mn-pp,yMax=mx+pp;
   const toY=p=>pad.top+ch-((p-yMin)/(yMax-yMin))*ch;
   const toX=i=>pad.left+i*gap+gap/2;
 

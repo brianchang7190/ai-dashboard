@@ -38,7 +38,7 @@ def fetch_sina_quotes(symbols):
             'volume': int(float(fields[10])) if len(fields) > 10 and fields[10] else 0,
             'high': float(fields[6]) if len(fields) > 6 and fields[6] else 0,
             'low': float(fields[7]) if len(fields) > 7 and fields[7] else 0,
-            'prevClose': float(fields[26]) if len(fields) > 26 and fields[26] else 0,
+            'prevClose': float(fields[26]) if len(fields) > 26 and fields[26] else (float(fields[1]) if fields[1] else 0.01),
         }
         # 修正 prevClose
         if result[sym]['prevClose'] == 0 and result[sym]['price'] and result[sym]['changePercent']:
