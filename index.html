@@ -808,8 +808,8 @@ canvas#klineCanvas { display: block; width: 100%; }
   .header-subtitle { display: none; }
   .header-divider { display: none; }
   .main-grid     { grid-template-columns: 1fr; padding: 0 8px; gap: 8px; margin-top: 12px; }
-  .sector-chip, .sector-cloud, .sector-app, .sector-cyber,
-  .side-panel, .kline-full { grid-column: 1; }
+  .sector-chip,.sector-cloud,.sector-app,.sector-cyber,.sector-foundation,.sector-data,.sector-robotics,.sector-fintech,
+  .side-panel,.kline-full,#compareSection { grid-column: 1; }
   .sector-body   { grid-template-columns: repeat(2, 1fr); }
   .stock-card    { padding: 14px 12px; }
   .stock-price   { font-size: 1.1rem; }
@@ -1170,7 +1170,7 @@ async function fetchAll(force=false){
   try{
     // === 第1步: 加载 data.json（一定成功）===
     const r=await fetch(DATA_URL+'?t='+Date.now());
-    if(!r.ok){debugLog('data.json HTTP '+r.status);clearLoadProgress();showToast('Data not available');return;}
+    if(!r.ok){debugLog('data.json HTTP '+r.status);clearLoadProgress();showToast('Data not available');return;}// CRITICAL FIX: return 在 try 内，不会触发 catch，renderAll 不会执行
     const j=await r.json();
     const quotes=j.quotes||{}, klines=j.klines||{}, newsData=j.news||[];
     const fresh={};
@@ -1222,10 +1222,9 @@ async function fetchAll(force=false){
         const age=j.timestamp?Math.max(1,Math.round((Date.now()-new Date(j.timestamp).getTime())/60000)):1;
         st.textContent=(realtimeCount?'Real-time':'Delay')+' ~'+age+'m';
       }
-    }
-  }catch(e){debugLog('ERROR: '+e.message);showToast('Failed to load data');}
-  clearLoadProgress();
-  renderAll();
+      renderAll();
+    } else { clearLoadProgress(); }
+  }catch(e){debugLog('ERROR: '+e.message);showToast('Failed to load data');clearLoadProgress();}
 }
 
 // 加载进度提示
@@ -1404,7 +1403,7 @@ function computeIndicators(daily){
   const ma20=closes.slice(-20).reduce((a,b)=>a+b,0)/20;
   // RSI14
   let gain=0,loss=0;
-  for(let i=n-14;i<n;i++){
+  for(let i=n-13;i<n;i++){
     const diff=closes[i]-closes[i-1];
     if(diff>0)gain+=diff;else loss-=diff;
   }
@@ -1576,7 +1575,7 @@ function renderKline(sym){
   const vTop=ch+pad.top+44,vH=48;
   const gap=cw/daily.length,candleW=Math.max(1.5,Math.min(10,gap*.65));
 
-  let mn=Infinity,mx=-Infinity,mv=0;
+  let mn=Infinity,mx=-Infinity,mv=1;
   daily.forEach(d=>{if(d.low<mn)mn=d.low;if(d.high>mx)mx=d.high;if(d.volume>mv)mv=d.volume;});
   const pr=mx-mn,pp=pr*.08,yMin=mn-pp,yMax=mx+pp;
   const toY=p=>pad.top+ch-((p-yMin)/(yMax-yMin))*ch;
@@ -1643,8 +1642,8 @@ function renderKline(sym){
     drawLine(macdData.dif,'rgba(44,62,90,0.7)',1);
     drawLine(macdData.dea,'rgba(184,147,90,0.7)',1);
 
-    // MACD 柱
-    for(let i=0;i<Math.min(macdData.macd.length,daily.length);i++){
+    // MACD 柱 (跳过前26个不稳定种子值)
+    for(let i=26;i<Math.min(macdData.macd.length,daily.length);i++){
       const x=toX(i)-candleW/2,v=macdData.macd[i];
       ctx.fillStyle=v>=0?'rgba(31,77,61,0.5)':'rgba(139,58,58,0.45)';
       const barH=Math.max(1,Math.abs(mY(v)-mY(0)));
@@ -1668,7 +1667,8 @@ klineCanvas.addEventListener('mousemove',function(e){
   ctx.strokeStyle='#b8935a';ctx.lineWidth=.5;ctx.setLineDash([3,5]);
   ctx.beginPath();ctx.moveTo(nearest.cx,kd.pad.top);ctx.lineTo(nearest.cx,kd.vTop+kd.vH);ctx.stroke();ctx.setLineDash([]);
   // Tooltip — like a slip of paper
-  const tx=nearest.cx>kd.w/2?nearest.cx-138:nearest.cx+10,ty=kd.pad.top+4;
+  let tx=nearest.cx>kd.w/2?nearest.cx-138:nearest.cx+10;tx=Math.max(4,Math.min(tx,kd.w-132));
+  const ty=kd.pad.top+4;
   ctx.fillStyle='#fdfbf6';ctx.strokeStyle='#c8c2b4';ctx.lineWidth=1;
   ctx.beginPath();rr(ctx,tx,ty,128,92,2);ctx.fill();ctx.stroke();
   ctx.fillStyle='#4a4640';ctx.font='10px "Chivo Mono", monospace';ctx.fillText(nearest.date,tx+8,ty+18);
@@ -1692,7 +1692,7 @@ async function selectStock(sym){
       date:new Date().toISOString().split('T')[0],
       open:q.price, high:q.price, low:q.price, close:q.price, volume:q.volume
     }];
-    saveCache(stockData);
+    // 不缓存合成数据到 localStorage
     renderKline(sym);
   }
 }
@@ -1753,20 +1753,18 @@ async function init(){
   if(window.location.search.includes('debug')) document.getElementById('debugPanel').style.display='block';
   debugLog('init() — '+(IS_FILE?'FILE=MOCK':'WEB=data.json'));
   try{
-    if(IS_FILE){loadMockData();lastRefreshTime=new Date();fetchNews();debugLog('Mock loaded');}
+    if(IS_FILE){loadMockData();lastRefreshTime=new Date();fetchNews();debugLog('Mock loaded');renderAll();}
     else{
       const cached=loadCache();
-      if(cached&&(Date.now()-cached.timestamp<CACHE_TTL.quote)){stockData=cached.data;lastRefreshTime=new Date(cached.timestamp);debugLog('Cache hit');}
-      // 自动加载 data.json
+      if(cached&&(Date.now()-cached.timestamp<CACHE_TTL.quote)){stockData=cached.data;lastRefreshTime=new Date(cached.timestamp);debugLog('Cache hit');renderAll();}
       if(!Object.keys(stockData).length&&DATA_URL){
         debugLog('Auto-loading data.json…');
-        fetchAll().then(()=>{lastRefreshTime=new Date();renderAll();});
-      }
-      fetchNews();
+        fetchAll().then(()=>{lastRefreshTime=new Date();});
+      } else if(!newsCache.length){fetchNews();}
     }
-    renderAll();
   }catch(e){debugLog('ERROR: '+e.message);}
   document.addEventListener('keydown',e=>{if(e.key==='r'&&e.ctrlKey){e.preventDefault();handleRefresh();}});
+  window.addEventListener('resize',()=>{if(selectedStock){renderKline(selectedStock);renderSectorCompare();}});
 }
 init();
 console.log('◆ The Ledger — AI Sector Monitor');
