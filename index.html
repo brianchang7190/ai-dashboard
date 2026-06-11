@@ -1299,7 +1299,7 @@ function renderSectorCompare(){
   });
 }
 
-let newsCache=[],newsPage=0;const NEWS_PER_PAGE=5;
+let newsCache=[],newsPage=0;const NEWS_PER_PAGE=10;
 function shiftNews(dir){const maxPage=Math.max(0,Math.ceil(newsCache.length/NEWS_PER_PAGE)-1);newsPage=Math.max(0,Math.min(maxPage,newsPage+dir));renderNews();}
 function renderNews(){
   const list=document.getElementById('newsList');
