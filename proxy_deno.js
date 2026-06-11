@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
       const results = {};
       const fetches = symbols.map(async (sym) => {
         try {
-          const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=1d&interval=1d`;
+          const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=6mo&interval=1d`;
           const resp = await fetch(yahooUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
           if (resp.ok) {
             const data = await resp.json();

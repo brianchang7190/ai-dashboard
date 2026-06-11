@@ -25,7 +25,7 @@ klines = {}
 print("Fetching quotes + K-lines from Yahoo Finance...")
 for sym in all_symbols:
     try:
-        url = f'https://query1.finance.yahoo.com/v8/finance/chart/{sym}?range=3mo&interval=1d'
+        url = f'https://query1.finance.yahoo.com/v8/finance/chart/{sym}?range=6mo&interval=1d'
         req = urllib.request.Request(url, headers={
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
         })
