@@ -851,8 +851,14 @@ canvas#klineCanvas { display: block; width: 100%; }
      ============================================================ -->
 <!-- Debug Console (hidden, add ?debug to URL to show) -->
 <div style="max-width:1480px;margin:16px auto 0;padding:0 32px;display:none;" id="debugPanel">
-  <div style="background:var(--card);border:1px solid var(--border);padding:10px 16px;font-family:var(--font-mono);font-size:0.62rem;color:var(--ink-muted);letter-spacing:0.04em;" id="debugMsg">
-    ⏳ Initializing…
+  <div style="background:var(--card);border:1px solid var(--border);padding:10px 16px;font-family:var(--font-mono);font-size:0.62rem;color:var(--ink-muted);letter-spacing:0.04em;" id="debugMsg">⏳ Initializing…</div>
+</div>
+
+<!-- Alert Panel -->
+<div style="max-width:1480px;margin:16px auto 0;padding:0 32px;display:none;" id="alertPanel">
+  <div style="background:var(--card);border:1px solid var(--brass);padding:8px 14px;font-family:var(--font-mono);font-size:0.58rem;color:var(--ink);letter-spacing:0.04em;display:flex;align-items:center;justify-content:space-between;">
+    <span id="alertMsg">🔔</span>
+    <button onclick="document.getElementById('alertPanel').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:1rem;color:var(--ink-muted);">×</button>
   </div>
 </div>
 
@@ -976,9 +982,11 @@ canvas#klineCanvas { display: block; width: 100%; }
         <span class="kline-ticker" id="klineStockLabel">select a ticker</span>
       </div>
       <div class="kline-range-btns">
+        <button class="kline-rbtn" onclick="shiftKline(-1)" title="更早">◀</button>
         <button class="kline-rbtn active" onclick="setKlineRange(30, this)">30D</button>
         <button class="kline-rbtn" onclick="setKlineRange(60, this)">60D</button>
         <button class="kline-rbtn" onclick="setKlineRange(90, this)">90D</button>
+        <button class="kline-rbtn" onclick="shiftKline(1)" title="更新">▶</button>
       </div>
     </div>
     <div class="kline-summary" id="klineSummary" style="display:none;"></div>
@@ -1084,7 +1092,7 @@ const SECTORS = {
  * (see previous version for full definitions)
  */
 
-let stockData = {}, selectedStock = null, klineRange = 30, apiCallCount = 0, lastRefreshTime = null;
+let stockData = {}, selectedStock = null, klineRange = 30, klineOffset = 0, apiCallCount = 0, lastRefreshTime = null;
 
 // =================== Debug ===================
 const debugLines=[];
@@ -1177,6 +1185,8 @@ async function fetchAll(force=false){
       stockData={...stockData,...fresh};
       saveCache(stockData);
       lastRefreshTime=new Date(j.timestamp?new Date(j.timestamp):new Date());
+      checkAlerts();
+      reqNotification();
       const st=document.getElementById('statusMsg');
       if(st){
         const age=j.timestamp?Math.max(1,Math.round((Date.now()-new Date(j.timestamp).getTime())/60000)):1;
@@ -1347,6 +1357,36 @@ function computeIndicators(daily){
   return {ma20,rsi,volRatio};
 }
 
+// 告警检查
+let alertShown={};
+function checkAlerts(){
+  const alerts=[];
+  for(const sec of Object.values(SECTORS)){
+    for(const st of sec.stocks){
+      const d=stockData[st.symbol];if(!d||!d.quote||!d.daily||d.daily.length<20)continue;
+      const q=d.quote,ind=computeIndicators(d.daily);
+      if(!ind)continue;
+      const key=st.symbol;
+      // RSI 超买超卖
+      if(ind.rsi>70&&!alertShown[key+'_rsi70']){alerts.push(`${st.symbol} RSI ${ind.rsi} overbought ⚠️`);alertShown[key+'_rsi70']=true;}
+      if(ind.rsi<30&&!alertShown[key+'_rsi30']){alerts.push(`${st.symbol} RSI ${ind.rsi} oversold 💡`);alertShown[key+'_rsi30']=true;}
+      // 放量
+      if(ind.volRatio>2&&!alertShown[key+'_vol']){alerts.push(`${st.symbol} vol surge ${ind.volRatio.toFixed(1)}× 🔥`);alertShown[key+'_vol']=true;}
+      // 大跌大涨
+      if(Math.abs(q.changePercent)>5&&!alertShown[key+'_chg']){alerts.push(`${st.symbol} ${q.changePercent>=0?'surge':'plunge'} ${q.changePercent.toFixed(1)}%`);alertShown[key+'_chg']=true;}
+    }
+  }
+  if(alerts.length){
+    document.getElementById('alertPanel').style.display='block';
+    document.getElementById('alertMsg').innerHTML='🔔 '+alerts.join(' &nbsp;|&nbsp; ');
+    // 浏览器通知
+    if(Notification.permission==='granted'){new Notification('AI Dashboard Alert',{body:alerts[0]});}
+  }
+}
+
+// 请求通知权限
+function reqNotification(){if('Notification' in window&&Notification.permission==='default'){Notification.requestPermission();}}
+
 // MACD(12,26,9)
 function computeMACD(daily){
   if(!daily||daily.length<35)return null;
@@ -1413,7 +1453,10 @@ function renderKline(sym){
       <span><span class="ks-label">Vol</span> ${fmtVol(q.volume)}</span>`;
   }
 
-  const daily=d.daily.slice(-klineRange);
+  // 支持历史翻页
+  const offset=Math.max(0,Math.min(d.daily.length-klineRange,(d.daily.length-klineRange)+klineOffset));
+  const daily=d.daily.slice(offset,offset+klineRange);
+  if(daily.length<5){klineOffset=0;return;} // 无效偏移，重置
   const container=canvas.parentElement;
   const w=container.clientWidth-40,h=430,dpr=window.devicePixelRatio||1;
   canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';
@@ -1532,7 +1575,7 @@ function rr(c,x,y,w,h,r){c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+
 
 // =================== Interactions ===================
 async function selectStock(sym){
-  selectedStock=sym;renderAll();
+  selectedStock=sym;klineOffset=0;renderAll();
   document.getElementById('klineSection').scrollIntoView({behavior:'smooth',block:'nearest'});
   // K线: 腾讯免费接口暂不提供日线，显示提示
   const d=stockData[sym];
@@ -1547,7 +1590,8 @@ async function selectStock(sym){
     renderKline(sym);
   }
 }
-function setKlineRange(days,btn){klineRange=days;document.querySelectorAll('.kline-rbtn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');if(selectedStock)renderKline(selectedStock);}
+function setKlineRange(days,btn){klineRange=days;klineOffset=0;document.querySelectorAll('.kline-rbtn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');if(selectedStock)renderKline(selectedStock);}
+function shiftKline(dir){klineOffset+=dir*Math.floor(klineRange/2);if(selectedStock)renderKline(selectedStock);}
 function toggleSector(sid){document.getElementById(`sector-${sid}`).classList.toggle('folded');}
 
 async function handleRefresh(){
