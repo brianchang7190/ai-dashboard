@@ -1007,7 +1007,14 @@ canvas#klineCanvas { display: block; width: 100%; }
 <!-- News Feed -->
 <div class="news-section">
   <div class="news-panel">
-    <div class="news-head">Market Intelligence — AI Sector News &amp; Sentiment</div>
+    <div class="news-head" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>Market Intelligence — AI Sector News &amp; Sentiment</span>
+      <span style="font-family:var(--font-mono);font-size:0.6rem;color:var(--ink-muted);">
+        <button class="kline-rbtn" onclick="shiftNews(-1)">◀</button>
+        <span id="newsPageInfo">1/1</span>
+        <button class="kline-rbtn" onclick="shiftNews(1)">▶</button>
+      </span>
+    </div>
     <div class="news-list" id="newsList">
       <div class="news-item" style="color:var(--ink-muted);font-style:italic;">Loading news feed…</div>
     </div>
@@ -1223,7 +1230,6 @@ function loadCache(){try{const r=localStorage.getItem(CACHE_KEY);return r?JSON.p
 
 // =================== Render ===================
 function renderAll(){renderTicker();renderSectors();renderComparison();renderNews();if(selectedStock)renderKline(selectedStock);renderSectorCompare();updateMeta();}
-let newsCache=[];
 
 // 赛道对比图 — 同赛道 4 只标的归一化走势
 function renderSectorCompare(){
@@ -1298,14 +1304,16 @@ function renderSectorCompare(){
   });
 }
 
+let newsCache=[],newsPage=0;const NEWS_PER_PAGE=5;
+function shiftNews(dir){const maxPage=Math.max(0,Math.ceil(newsCache.length/NEWS_PER_PAGE)-1);newsPage=Math.max(0,Math.min(maxPage,newsPage+dir));renderNews();}
 function renderNews(){
   const list=document.getElementById('newsList');
   if(!list)return;
-  if(!newsCache.length){
-    list.innerHTML=`<div class="news-item" style="color:var(--ink-muted);font-style:italic;">Loading news…</div>`;
-    return;
-  }
-  list.innerHTML=newsCache.slice(0,10).map(n=>{
+  if(!newsCache.length){list.innerHTML=`<div class="news-item" style="color:var(--ink-muted);font-style:italic;">Loading news…</div>`;return;}
+  const start=newsPage*NEWS_PER_PAGE,items=newsCache.slice(start,start+NEWS_PER_PAGE);
+  const maxPage=Math.max(0,Math.ceil(newsCache.length/NEWS_PER_PAGE)-1);
+  const pi=document.getElementById('newsPageInfo');if(pi)pi.textContent=`${newsPage+1}/${maxPage+1}`;
+  list.innerHTML=items.map(n=>{
     const s=(n.sentiment||n.overall_sentiment_label||'neutral').toLowerCase();
     const cls=s==='bullish'?'bullish':(s==='bearish'?'bearish':'neutral');
     const t=n.pubDate?n.pubDate.slice(0,11):(n.time_published?n.time_published.slice(0,10):'');
