@@ -964,6 +964,12 @@ canvas#klineCanvas { display: block; width: 100%; }
   <div class="kline-full" id="compareSection">
     <div class="kline-top">
       <span class="kline-heading">Sector Comparison <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--ink-muted);">— normalized % change</span></span>
+      <div class="kline-range-btns">
+        <button class="kline-rbtn" onclick="shiftCompare(-1)">◀</button>
+        <button class="kline-rbtn active" onclick="setCompareRange(30,this)">30D</button>
+        <button class="kline-rbtn" onclick="setCompareRange(60,this)">60D</button>
+        <button class="kline-rbtn" onclick="shiftCompare(1)">▶</button>
+      </div>
     </div>
     <canvas id="compareCanvas" style="display:block;width:100%;height:280px;"></canvas>
   </div>
@@ -1092,7 +1098,7 @@ const SECTORS = {
  * (see previous version for full definitions)
  */
 
-let stockData = {}, selectedStock = null, klineRange = 30, klineOffset = 0, apiCallCount = 0, lastRefreshTime = null;
+let stockData = {}, selectedStock = null, klineRange = 30, klineOffset = 0, compareRange = 30, compareOffset = 9999, apiCallCount = 0, lastRefreshTime = null;
 
 // =================== Debug ===================
 const debugLines=[];
@@ -1235,7 +1241,7 @@ function renderSectorCompare(){
   const pad={top:20,right:20,bottom:28,left:50};
   const cw=w-pad.left-pad.right,ch=h-pad.top-pad.bottom;
 
-  // 收集数据，取最长公共长度
+  // 收集数据
   let allDaily=[],maxLen=0;
   const colors=['#1f4d3d','#2c3e5a','#8b3a3a','#b8935a'];
   for(const st of sector.stocks){
@@ -1244,24 +1250,28 @@ function renderSectorCompare(){
   }
   if(allDaily.length<2)return;
 
-  // 公共长度：所有标的都有的数据
   const minLen=Math.min(...allDaily.map(a=>a.daily.length));
-  const start=allDaily[0].daily.length-minLen;
+  const maxOff=Math.max(0,minLen-compareRange);
+  if(compareOffset>maxOff)compareOffset=maxOff;
+  const start=Math.max(0,compareOffset);
+  const end=Math.min(minLen,compareOffset+compareRange);
+  const sliceLen=end-start;
 
-  // 归一化：以起点为 0%
+  if(sliceLen<5){compareOffset=maxOff;return;}
+
+  // 归一化
   const lines=allDaily.map((a,i)=>{
-    const base=a.daily[start].close;
-    return {
-      sym:a.sym,color:colors[i],
-      points:a.daily.slice(start).map(d=>(d.close/base-1)*100)
-    };
+    const d=a.daily.slice(-minLen);
+    const slice=d.slice(start,end);
+    const base=slice[0].close;
+    return {sym:a.sym,color:colors[i],points:slice.map(d=>(d.close/base-1)*100)};
   });
 
   // 范围
   let yMin=Infinity,yMax=-Infinity;
   lines.forEach(l=>l.points.forEach(p=>{if(p<yMin)yMin=p;if(p>yMax)yMax=p;}));
   const yr=yMax-yMin||1;
-  const toX=i=>pad.left+(i/(minLen-1))*cw;
+  const toX=i=>pad.left+(i/(sliceLen-1))*cw;
   const toY=v=>pad.top+ch-((v-yMin)/yr)*ch;
 
   // 网格+标签
@@ -1269,8 +1279,11 @@ function renderSectorCompare(){
   for(let i=0;i<=4;i++){const v=yMin+yr*(i/4),y=toY(v);ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(w-pad.right,y);ctx.stroke();ctx.fillStyle='#8a8578';ctx.font='9px "Chivo Mono",monospace';ctx.fillText(v.toFixed(1)+'%',2,y+4);}
 
   // 日期
-  const dstep=Math.max(1,Math.floor(minLen/5));
-  for(let i=0;i<minLen;i+=dstep){ctx.fillText(allDaily[0].daily[start+i].date.slice(5),toX(i)-16,h-pad.bottom+14);}
+  const dstep=Math.max(1,Math.floor(sliceLen/5));
+  for(let i=0;i<sliceLen;i+=dstep){
+    const di=allDaily[0].daily.slice(-minLen)[start+i];
+    if(di)ctx.fillText(di.date.slice(5),toX(i)-16,h-pad.bottom+14);
+  }
 
   // 画线
   lines.forEach(l=>{
@@ -1597,7 +1610,15 @@ function shiftKline(dir){
   if(!d||!d.daily)return;
   const maxOff=Math.max(0,d.daily.length-klineRange);
   klineOffset=Math.max(0,Math.min(maxOff,klineOffset+dir*Math.floor(klineRange/2)));
-  if(selectedStock)renderKline(selectedStock);
+  if(selectedStock)renderKline(selectedStock);renderSectorCompare();
+}
+function setCompareRange(days,btn){compareRange=days;compareOffset=9999;document.querySelectorAll('#compareSection .kline-rbtn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');renderSectorCompare();}
+function shiftCompare(dir){
+  const d=stockData[selectedStock];
+  if(!d||!d.daily)return;
+  const maxOff=Math.max(0,d.daily.length-compareRange);
+  compareOffset=Math.max(0,Math.min(maxOff,compareOffset+dir*Math.floor(compareRange/2)));
+  renderSectorCompare();
 }
 function toggleSector(sid){document.getElementById(`sector-${sid}`).classList.toggle('folded');}
 
