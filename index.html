@@ -1193,9 +1193,10 @@ async function fetchAll(force=false){
         const yr=await fetch(batchUrl);
         if(yr.ok){
           const results=await yr.json();
-          const n=Object.keys(results||{}).length;
+          const safeRes=results&&typeof results==='object'&&!Array.isArray(results)?results:{};
+          const n=Object.keys(safeRes).length;
           if(!n){firstErr='Empty response (proxy not updated?)';}
-          else{ for(const[sym,data]of Object.entries(results)){
+          else{ for(const[sym,data]of Object.entries(safeRes)){
             if(data&&data.price){
               const prev=fresh[sym]?.quote?.prevClose??data.price;
               const chg=+(data.price-prev).toFixed(2);
@@ -1356,7 +1357,7 @@ async function fetchNews(){
     try{
       const r=await fetch(DATA_URL+'?t='+Date.now());
       if(r.ok){const j=await r.json();if(j.news&&j.news.length){newsCache=j.news;}}
-    }catch(e){}
+    }catch(e){debugLog('fetchNews web err: '+e.message);}
     renderNews();
   }
 }
@@ -1760,11 +1761,11 @@ async function init(){
       if(cached&&(Date.now()-cached.timestamp<CACHE_TTL.quote)){stockData=cached.data;lastRefreshTime=new Date(cached.timestamp);debugLog('Cache hit');renderAll();}
       if(!Object.keys(stockData).length&&DATA_URL){
         debugLog('Auto-loading data.json…');
-        fetchAll().then(()=>{lastRefreshTime=new Date();});
-      } else if(!newsCache.length){fetchNews();}
+        fetchAll().then(()=>{lastRefreshTime=new Date();}).catch(e=>debugLog('fetchAll init err: '+e.message));
+      } else if(!newsCache.length){fetchNews().catch(e=>debugLog('fetchNews err: '+e.message));}
     }
   }catch(e){debugLog('ERROR: '+e.message);}
-  document.addEventListener('keydown',e=>{if(e.key==='r'&&e.ctrlKey){e.preventDefault();handleRefresh();}});
+  document.addEventListener('keydown',e=>{if(e.key==='r'&&(e.ctrlKey||e.metaKey)){e.preventDefault();handleRefresh();}});
   window.addEventListener('resize',()=>{if(selectedStock){renderKline(selectedStock);renderSectorCompare();}});
 }
 init();
