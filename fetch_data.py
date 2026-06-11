@@ -8,9 +8,9 @@ SECTORS = {
     "app":        ["CRM","PLTR","SNOW","CRWD"],
     "cyber":      ["PANW","ZS","NET","S"],
     "foundation": ["META","AAPL","BBAI","AI"],
-    "data":       ["DDOG","MDB","ESTC","CFLT"],
+    "data":       ["DDOG","MDB","ESTC","DT"],
     "robotics":   ["TSLA","ISRG","MBLY","PATH"],
-    "fintech":    ["SOFI","DUOL","SHOP","SQ"],
+    "fintech":    ["SOFI","DUOL","SHOP","PYPL"],
 }
 
 all_symbols = []
