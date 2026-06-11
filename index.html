@@ -1454,9 +1454,10 @@ function renderKline(sym){
   }
 
   // 支持历史翻页
-  const offset=Math.max(0,Math.min(d.daily.length-klineRange,(d.daily.length-klineRange)+klineOffset));
-  const daily=d.daily.slice(offset,offset+klineRange);
-  if(daily.length<5){klineOffset=0;return;} // 无效偏移，重置
+  const maxOff=Math.max(0,d.daily.length-klineRange);
+  if(klineOffset>maxOff)klineOffset=maxOff;
+  const daily=d.daily.slice(klineOffset,klineOffset+klineRange);
+  if(daily.length<5){klineOffset=maxOff;return;}
   const container=canvas.parentElement;
   const w=container.clientWidth-40,h=430,dpr=window.devicePixelRatio||1;
   canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';
@@ -1575,7 +1576,7 @@ function rr(c,x,y,w,h,r){c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+
 
 // =================== Interactions ===================
 async function selectStock(sym){
-  selectedStock=sym;klineOffset=0;renderAll();
+  selectedStock=sym;klineOffset=9999;renderAll();
   document.getElementById('klineSection').scrollIntoView({behavior:'smooth',block:'nearest'});
   // K线: 腾讯免费接口暂不提供日线，显示提示
   const d=stockData[sym];
@@ -1590,8 +1591,14 @@ async function selectStock(sym){
     renderKline(sym);
   }
 }
-function setKlineRange(days,btn){klineRange=days;klineOffset=0;document.querySelectorAll('.kline-rbtn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');if(selectedStock)renderKline(selectedStock);}
-function shiftKline(dir){klineOffset+=dir*Math.floor(klineRange/2);if(selectedStock)renderKline(selectedStock);}
+function setKlineRange(days,btn){klineRange=days;klineOffset=9999;document.querySelectorAll('.kline-rbtn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');if(selectedStock)renderKline(selectedStock);}
+function shiftKline(dir){
+  const d=stockData[selectedStock];
+  if(!d||!d.daily)return;
+  const maxOff=Math.max(0,d.daily.length-klineRange);
+  klineOffset=Math.max(0,Math.min(maxOff,klineOffset+dir*Math.floor(klineRange/2)));
+  if(selectedStock)renderKline(selectedStock);
+}
 function toggleSector(sid){document.getElementById(`sector-${sid}`).classList.toggle('folded');}
 
 async function handleRefresh(){
